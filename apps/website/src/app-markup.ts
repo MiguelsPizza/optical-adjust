@@ -422,7 +422,9 @@ function createAiSectionMarkup() {
         <details class="ai-how-it-works">
           <summary>${escapeHtml(APP_COPY.aiHowItWorksHeading)}</summary>
           <ol>${steps}</ol>
+          <p class="ai-relay-setup">Start the local relay: <code>npx @mcp-b/webmcp-local-relay</code> — <a href="https://www.npmjs.com/package/@mcp-b/webmcp-local-relay" target="_blank" rel="noopener noreferrer">npm</a></p>
         </details>
+        <a class="ai-cdn-link" href="https://cdn.jsdelivr.net/npm/@mcp-b/webmcp-local-relay@latest/dist/browser/embed.js" target="_blank" rel="noopener noreferrer">@mcp-b/webmcp-local-relay embed.js (CDN)</a>
       </div>
       <div class="ai-prompt-block">
         <div class="ai-prompt-header">
