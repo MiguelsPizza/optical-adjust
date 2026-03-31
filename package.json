@@ -8,9 +8,8 @@
     "check": "vp check",
     "dev": "vp run website#dev",
     "prepare": "vp config",
-    "ready": "vp fmt && vp check && vp run optics#test && (cd packages/optics-render && vp test) && vp run build -r",
-    "test:e2e": "vp run website#test",
-    "test:optics": "vp run optics#test",
+    "ready": "vp fmt && vp check && vp test && vp run build -r",
+    "test:optics": "cd packages/optics && vp test --coverage",
     "test:render": "cd packages/optics-render && vp test"
   },
   "devDependencies": {

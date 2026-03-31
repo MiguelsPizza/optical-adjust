@@ -8,23 +8,33 @@ Residual-defocus optics playground for browser-based prefiltering experiments.
 - `packages/optics-types`: shared public types and enums
 - `packages/optics`: pure optics math, FFT, Wiener, and diagnostics
 - `packages/optics-render`: browser rendering and canvas helpers
-- `apps/website`: React playground shell
+- `apps/website`: browser playground shell
 
 ## Commands
 
 ```bash
 vp check
-vp run test:optics
-vp run test:e2e
+vp test
+bash scripts/test-all.sh
+bash scripts/ready.sh
 vp run build -r
 vp run dev
 ```
 
-Browser-mode rendering tests should use direct `vp test` inside the package:
+Testing is intentionally split:
+
+- `vp test` runs the non-browser package suite from the repo root.
+- `bash scripts/test-all.sh` runs the full test suite, including both browser suites.
+- `bash scripts/ready.sh` runs formatting, checks, the full test suite, and the build.
+
+Browser-mode suites should use direct `vp test` inside their own package/app directories:
 
 ```bash
 cd packages/optics-render
 vp test
+
+cd apps/website
+vp test
 ```
 
-Do not run browser-mode tests via `vp run optics-render#test` or any root `vp run` wrapper around that command. In this workspace, the stable path is direct `vp test` from [`packages/optics-render`](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics-render).
+Do not run the browser suites through `vp run optics-render#test`, `vp run website#test`, or a root `vp run` wrapper around those browser commands. In this workspace, the stable paths are direct `vp test` from [`packages/optics-render`](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics-render) and [`apps/website`](/Users/alexmnahas/personalRepos/optical-adjust/apps/website), or the shell helpers in [`scripts/test-all.sh`](/Users/alexmnahas/personalRepos/optical-adjust/scripts/test-all.sh) and [`scripts/ready.sh`](/Users/alexmnahas/personalRepos/optical-adjust/scripts/ready.sh).

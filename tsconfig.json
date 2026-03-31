@@ -1,10 +1,12 @@
 {
+  "include": ["vite.config.ts"],
   "compilerOptions": {
     "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "noEmit": true,
+    "skipLibCheck": true,
     "paths": {
       "optics-constants": ["./packages/optics-constants/src/index.ts"],
       "optics": ["./packages/optics/src/index.ts"],
