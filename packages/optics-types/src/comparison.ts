@@ -12,6 +12,51 @@ export interface ImageQualityMetrics {
   readonly ssim: UnitlessScalar;
 }
 
+export type ImageQualityMetricName = keyof ImageQualityMetrics;
+export type QualityComparisonRelation = "better" | "mixed" | "tied" | "worse";
+
+export interface ImageQualityMetricDelta {
+  readonly candidateValue: UnitlessScalar;
+  readonly improvement: UnitlessScalar;
+  readonly referenceValue: UnitlessScalar;
+  readonly relation: Exclude<QualityComparisonRelation, "mixed">;
+}
+
+export interface ImageQualityComparisonSummary {
+  readonly betterMetricCount: number;
+  readonly byMetric: Record<ImageQualityMetricName, ImageQualityMetricDelta>;
+  readonly referenceLabel: string;
+  readonly relation: QualityComparisonRelation;
+  readonly tiedMetricCount: number;
+  readonly worseMetricCount: number;
+}
+
+export interface AggregateQualityComparisonSummary {
+  readonly betterCaseCount: number;
+  readonly mixedCaseCount: number;
+  readonly referenceLabel: string;
+  readonly tiedCaseCount: number;
+  readonly totalCaseCount: number;
+  readonly worseCaseCount: number;
+}
+
+export interface ComparisonMatrixCaseSummary {
+  readonly blurRadiusPx: number;
+  readonly targetLabel: string;
+  readonly targetSlug: string;
+  readonly unsharpVsBlurred: ImageQualityComparisonSummary;
+  readonly wienerDiagnostics: ArtifactDiagnostics;
+  readonly wienerVsBlurred: ImageQualityComparisonSummary;
+  readonly wienerVsUnsharp: ImageQualityComparisonSummary;
+}
+
+export interface ComparisonMatrixSummary {
+  readonly cases: readonly ComparisonMatrixCaseSummary[];
+  readonly unsharpVsBlurred: AggregateQualityComparisonSummary;
+  readonly wienerVsBlurred: AggregateQualityComparisonSummary;
+  readonly wienerVsUnsharp: AggregateQualityComparisonSummary;
+}
+
 /**
  * Artifact diagnostics reported for the Wiener reference path.
  *

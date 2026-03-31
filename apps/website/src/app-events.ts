@@ -1,3 +1,4 @@
+import { AI_SETUP_PROMPT, APP_COPY } from "optics-constants";
 import {
   bindNumericViewerInput,
   bindOptionalNumericControl,
@@ -180,6 +181,19 @@ function bindOptionalInputs(root: HTMLElement, state: AppState, render: AppRende
   }
 }
 
+function bindCopyPromptButton(root: HTMLElement) {
+  const btn = root.querySelector<HTMLButtonElement>('[data-testid="copy-ai-prompt"]');
+  if (!btn) return;
+
+  btn.addEventListener("click", async () => {
+    await navigator.clipboard.writeText(AI_SETUP_PROMPT);
+    btn.textContent = APP_COPY.aiCopiedButton;
+    setTimeout(() => {
+      btn.textContent = APP_COPY.aiCopyButton;
+    }, 2000);
+  });
+}
+
 /**
  * Binds the full interactive event surface for the mounted playground.
  */
@@ -188,4 +202,5 @@ export function bindEvents(root: HTMLElement, state: AppState, render: AppRender
   bindFocusModeSelector(root, state, render);
   bindViewerInputs(root, state, render);
   bindOptionalInputs(root, state, render);
+  bindCopyPromptButton(root);
 }

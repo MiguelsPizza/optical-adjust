@@ -1,39 +1,12 @@
 import {
-  createCheckerBarTarget,
-  createSiemensStarTarget,
-  createSlantedEdgeTarget,
-  createTextStrokeTarget,
+  DEFAULT_COMPARISON_BLUR_RADII,
+  DEFAULT_COMPARISON_FIXTURE_SIZE,
+  DEFAULT_COMPARISON_TARGETS,
 } from "../../packages/optics/src/index.ts";
 
-export const COMPARISON_BLUR_RADII = [1, 1.5, 2.5] as const;
-
-export const COMPARISON_TARGET_FACTORIES = [
-  {
-    create: createTextStrokeTarget,
-    name: "text-like strokes",
-    slug: "text-strokes",
-  },
-  {
-    create: createSiemensStarTarget,
-    name: "Siemens star",
-    slug: "siemens-star",
-  },
-  {
-    create: createSlantedEdgeTarget,
-    name: "slanted edge",
-    slug: "slanted-edge",
-  },
-  {
-    create: createCheckerBarTarget,
-    name: "checker/bar",
-    slug: "checker-bar",
-  },
-] as const;
-
-export const COMPARISON_FIXTURE_SIZE = {
-  height: 64,
-  width: 64,
-} as const;
+export const COMPARISON_BLUR_RADII = DEFAULT_COMPARISON_BLUR_RADII;
+export const COMPARISON_TARGET_FACTORIES = DEFAULT_COMPARISON_TARGETS;
+export const COMPARISON_FIXTURE_SIZE = DEFAULT_COMPARISON_FIXTURE_SIZE;
 
 export const DEFAULT_COMPARISON_PARAMS = {
   unsharpAmount: 1.5,

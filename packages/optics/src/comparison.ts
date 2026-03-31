@@ -2,17 +2,30 @@ import { clamp } from "./utils.ts";
 import { convolveImageSpatial, deconvolveImage } from "./deconvolution.ts";
 import { measureImageQuality } from "./image-quality.ts";
 import type {
+  AggregateQualityComparisonSummary,
   ArtifactDiagnostics,
   ComparisonCaseResult,
+  ComparisonMatrixSummary,
   ComparisonPathParams,
+  ImageQualityComparisonSummary,
+  ImageQualityMetricName,
   ImageGrid,
   ImageQualityMetrics,
   PsfKernel,
+  QualityComparisonRelation,
   UnsharpMaskParams,
 } from "optics-types";
+import { createPillboxKernel } from "./psf.ts";
+import {
+  DEFAULT_COMPARISON_BLUR_RADII,
+  DEFAULT_COMPARISON_FIXTURE_SIZE,
+  DEFAULT_COMPARISON_TARGETS,
+  type SyntheticTargetDefinition,
+} from "./synthetic-targets.ts";
 
 const ARTIFACT_EPSILON = 1e-3;
 const CLIPPING_EPSILON = 1e-12;
+const COMPARISON_EPSILON = 1e-9;
 const NEIGHBORHOOD_RADIUS = 1;
 
 function createImageGrid(data: Float64Array, width: number, height: number): ImageGrid {
@@ -21,6 +34,98 @@ function createImageGrid(data: Float64Array, width: number, height: number): Ima
 
 function measureGridQuality(reference: ImageGrid, candidate: ImageGrid): ImageQualityMetrics {
   return measureImageQuality(reference.data, candidate.data, reference.width, reference.height);
+}
+
+function calculateMetricImprovement(
+  metricName: ImageQualityMetricName,
+  candidateValue: number,
+  referenceValue: number,
+) {
+  const improvement =
+    metricName === "rmse" ? referenceValue - candidateValue : candidateValue - referenceValue;
+  const relation: Exclude<QualityComparisonRelation, "mixed"> =
+    improvement > COMPARISON_EPSILON
+      ? "better"
+      : improvement < -COMPARISON_EPSILON
+        ? "worse"
+        : "tied";
+
+  return {
+    candidateValue,
+    improvement,
+    referenceValue,
+    relation,
+  };
+}
+
+function resolveAggregateRelation(
+  betterCount: number,
+  worseCount: number,
+  tiedCount: number,
+): QualityComparisonRelation {
+  if (betterCount > 0 && worseCount === 0) {
+    return "better";
+  }
+  if (worseCount > 0 && betterCount === 0) {
+    return "worse";
+  }
+  if (betterCount === 0 && worseCount === 0 && tiedCount > 0) {
+    return "tied";
+  }
+  return "mixed";
+}
+
+/**
+ * Summarizes whether a candidate path improves on a reference path across the
+ * three objective quality metrics used throughout the POC.
+ */
+export function summarizeImageQualityComparison(
+  candidate: ImageQualityMetrics,
+  reference: ImageQualityMetrics,
+  referenceLabel: string,
+): ImageQualityComparisonSummary {
+  const byMetric = {
+    psnr: calculateMetricImprovement("psnr", candidate.psnr, reference.psnr),
+    rmse: calculateMetricImprovement("rmse", candidate.rmse, reference.rmse),
+    ssim: calculateMetricImprovement("ssim", candidate.ssim, reference.ssim),
+  };
+  const relations = Object.values(byMetric).map((metric) => metric.relation);
+  const betterMetricCount = relations.filter((relation) => relation === "better").length;
+  const worseMetricCount = relations.filter((relation) => relation === "worse").length;
+  const tiedMetricCount = relations.filter((relation) => relation === "tied").length;
+
+  return {
+    betterMetricCount,
+    byMetric,
+    referenceLabel,
+    relation: resolveAggregateRelation(betterMetricCount, worseMetricCount, tiedMetricCount),
+    tiedMetricCount,
+    worseMetricCount,
+  };
+}
+
+function aggregateComparisonSummaries(
+  summaries: ReadonlyArray<ImageQualityComparisonSummary>,
+  referenceLabel: string,
+): AggregateQualityComparisonSummary {
+  return summaries.reduce<AggregateQualityComparisonSummary>(
+    (aggregate, summary) => ({
+      betterCaseCount: aggregate.betterCaseCount + (summary.relation === "better" ? 1 : 0),
+      mixedCaseCount: aggregate.mixedCaseCount + (summary.relation === "mixed" ? 1 : 0),
+      referenceLabel,
+      tiedCaseCount: aggregate.tiedCaseCount + (summary.relation === "tied" ? 1 : 0),
+      totalCaseCount: aggregate.totalCaseCount + 1,
+      worseCaseCount: aggregate.worseCaseCount + (summary.relation === "worse" ? 1 : 0),
+    }),
+    {
+      betterCaseCount: 0,
+      mixedCaseCount: 0,
+      referenceLabel,
+      tiedCaseCount: 0,
+      totalCaseCount: 0,
+      worseCaseCount: 0,
+    },
+  );
 }
 
 /**
@@ -198,5 +303,70 @@ export function compareCorrectionPaths(
     wienerDiagnostics: wiener.diagnostics,
     wienerRetinal: wiener.retinal,
     wienerRetinalQuality: measureGridQuality(image, wiener.retinal),
+  };
+}
+
+interface ComparisonMatrixOptions {
+  readonly blurRadii?: ReadonlyArray<number>;
+  readonly fixtureHeight?: number;
+  readonly fixtureWidth?: number;
+  readonly params: ComparisonPathParams;
+  readonly targets?: ReadonlyArray<SyntheticTargetDefinition>;
+}
+
+/**
+ * Runs the shared synthetic-target matrix used by the POC validation harness
+ * and reports explicit "better/mixed/worse" outcomes against each baseline.
+ */
+export function evaluateComparisonMatrix({
+  blurRadii = DEFAULT_COMPARISON_BLUR_RADII,
+  fixtureHeight = DEFAULT_COMPARISON_FIXTURE_SIZE.height,
+  fixtureWidth = DEFAULT_COMPARISON_FIXTURE_SIZE.width,
+  params,
+  targets = DEFAULT_COMPARISON_TARGETS,
+}: ComparisonMatrixOptions): ComparisonMatrixSummary {
+  const cases = targets.flatMap((targetDefinition) =>
+    blurRadii.map((blurRadiusPx) => {
+      const target = targetDefinition.create(fixtureWidth, fixtureHeight);
+      const result = compareCorrectionPaths(target, createPillboxKernel(blurRadiusPx), params);
+
+      return {
+        blurRadiusPx,
+        targetLabel: targetDefinition.name,
+        targetSlug: targetDefinition.slug,
+        unsharpVsBlurred: summarizeImageQualityComparison(
+          result.unsharpRetinalQuality,
+          result.blurredOriginalQuality,
+          "blurred original",
+        ),
+        wienerDiagnostics: result.wienerDiagnostics,
+        wienerVsBlurred: summarizeImageQualityComparison(
+          result.wienerRetinalQuality,
+          result.blurredOriginalQuality,
+          "blurred original",
+        ),
+        wienerVsUnsharp: summarizeImageQualityComparison(
+          result.wienerRetinalQuality,
+          result.unsharpRetinalQuality,
+          "unsharp retinal",
+        ),
+      };
+    }),
+  );
+
+  return {
+    cases,
+    unsharpVsBlurred: aggregateComparisonSummaries(
+      cases.map((summary) => summary.unsharpVsBlurred),
+      "blurred original",
+    ),
+    wienerVsBlurred: aggregateComparisonSummaries(
+      cases.map((summary) => summary.wienerVsBlurred),
+      "blurred original",
+    ),
+    wienerVsUnsharp: aggregateComparisonSummaries(
+      cases.map((summary) => summary.wienerVsUnsharp),
+      "unsharp retinal",
+    ),
   };
 }

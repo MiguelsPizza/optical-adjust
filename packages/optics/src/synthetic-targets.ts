@@ -5,6 +5,19 @@ import type { Grid2D } from "optics-types";
  */
 export interface SyntheticTarget extends Grid2D<Float64Array> {}
 
+export interface SyntheticTargetDefinition {
+  readonly create: (width: number, height: number) => SyntheticTarget;
+  readonly name: string;
+  readonly slug: string;
+}
+
+export const DEFAULT_COMPARISON_BLUR_RADII = [1, 1.5, 2.5] as const;
+
+export const DEFAULT_COMPARISON_FIXTURE_SIZE = {
+  height: 64,
+  width: 64,
+} as const;
+
 function createFilledTarget(width: number, height: number, fill = 0): SyntheticTarget {
   return {
     data: new Float64Array(width * height).fill(fill),
@@ -146,3 +159,26 @@ export function createCheckerBarTarget(width: number, height: number): Synthetic
 
   return target;
 }
+
+export const DEFAULT_COMPARISON_TARGETS: ReadonlyArray<SyntheticTargetDefinition> = [
+  {
+    create: createTextStrokeTarget,
+    name: "text-like strokes",
+    slug: "text-strokes",
+  },
+  {
+    create: createSiemensStarTarget,
+    name: "Siemens star",
+    slug: "siemens-star",
+  },
+  {
+    create: createSlantedEdgeTarget,
+    name: "slanted edge",
+    slug: "slanted-edge",
+  },
+  {
+    create: createCheckerBarTarget,
+    name: "checker/bar",
+    slug: "checker-bar",
+  },
+] as const;

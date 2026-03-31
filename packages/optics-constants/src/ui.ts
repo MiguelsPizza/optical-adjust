@@ -14,7 +14,43 @@ export const APP_COPY = {
   stabilityHeading: "Stability",
   title: "Optical Adjust",
   vergenceHeading: "Vergence",
+  wipBannerLabel: "WIP",
+  wipBannerTitle: "Experimental optics playground",
+  wipBannerDescription:
+    "This app is incomplete and not validated for real-world use. Do not treat it as accessibility, medical, or vision-care guidance.",
+  aiSectionHeading: "AI-assisted setup",
+  aiSectionDescription:
+    "This playground exposes WebMCP tools that let any desktop AI agent (Claude Desktop, Cursor, Windsurf, etc.) read and configure the form for you. " +
+    "Copy the prompt below, paste it into your AI along with your eye exam prescription, and the agent will fill everything in.",
+  aiHowItWorksHeading: "How it works",
+  aiHowItWorksSteps: [
+    "This page registers tools on navigator.modelContext using the WebMCP standard.",
+    "A local relay (embed.js) bridges those tools to your desktop AI via WebSocket on localhost.",
+    "Your AI agent sees the tools as native MCP tools and can read/write the playground state.",
+  ] as readonly string[],
+  aiPromptLabel: "Prompt for your AI",
+  aiCopyButton: "Copy prompt",
+  aiCopiedButton: "Copied!",
 } as const;
+
+export const AI_SETUP_PROMPT = `You have access to the Optical Adjust playground through WebMCP tools. The page is open in my browser and the local relay is running.
+
+I'm going to paste my eye exam prescription below. Please use it to configure the playground:
+
+1. Call optical_adjust_list_presets to see available presets.
+2. Call optical_adjust_list_focus_modes to see focus mode options.
+3. Call optical_adjust_configure with the parameters from my prescription:
+   - sphere: the SPH value from my prescription (in diopters, e.g. -2.25)
+   - focusMode: use "RelaxedFarPoint" for a realistic myopia simulation, or "PrescriptionEstimate" if you only have the prescription and no other context
+   - viewingDistanceM: typical screen distance (0.5 for laptop, 0.7 for desktop)
+   - pupilDiameterMm: 4 for normal indoor lighting, 3 for bright, 5-6 for dim
+4. Call optical_adjust_get_state to read back the full state and verify.
+5. Call optical_adjust_explain_feasibility to check whether correction is viable.
+
+Note: The playground currently uses the sphere (SPH) value only. Cylinder and axis are stored but not yet applied to the live renderer.
+
+Here is my prescription:
+`;
 
 export const EMPTY_STATE_COPY = {
   noWarnings: "No warnings for the current configuration.",

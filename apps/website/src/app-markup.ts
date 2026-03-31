@@ -1,4 +1,5 @@
 import {
+  AI_SETUP_PROMPT,
   APP_COPY,
   DIOPTER_INPUT_STEP,
   EMPTY_STATE_COPY,
@@ -300,6 +301,76 @@ function createQualityPanelMarkup(context: AppRenderContext) {
   `;
 }
 
+function describeComparisonRelation(context: string, relation: string) {
+  return `${context}: ${relation}.`;
+}
+
+function createOutcomeAuditMarkup(context: AppRenderContext) {
+  const totalCases = context.comparisonMatrix.wienerVsUnsharp.totalCaseCount;
+  const currentSummary = [
+    describeComparisonRelation(
+      "Current target Wiener vs blurred original",
+      context.currentComparisons.wienerVsBlurred.relation,
+    ),
+    describeComparisonRelation(
+      "Current target Wiener vs unsharp retinal",
+      context.currentComparisons.wienerVsUnsharp.relation,
+    ),
+  ].join(" ");
+  const matrixSummary =
+    `Shared ${totalCases}-case audit matrix with the current correction controls: ` +
+    `Wiener is better than blurred original in ${context.comparisonMatrix.wienerVsBlurred.betterCaseCount}/${totalCases} cases ` +
+    `and worse in ${context.comparisonMatrix.wienerVsBlurred.worseCaseCount}/${totalCases}. ` +
+    `Wiener is better than unsharp retinal in ${context.comparisonMatrix.wienerVsUnsharp.betterCaseCount}/${totalCases} cases ` +
+    `and worse in ${context.comparisonMatrix.wienerVsUnsharp.worseCaseCount}/${totalCases}. ` +
+    `Unsharp is better than blurred original in ${context.comparisonMatrix.unsharpVsBlurred.betterCaseCount}/${totalCases} cases ` +
+    `and tied in ${context.comparisonMatrix.unsharpVsBlurred.tiedCaseCount}/${totalCases}.`;
+  const noWinNotice =
+    context.comparisonMatrix.wienerVsUnsharp.betterCaseCount === 0 &&
+    context.comparisonMatrix.wienerVsUnsharp.worseCaseCount > 0
+      ? `<p class="audit-callout" data-testid="matrix-no-win">The current shared matrix does not show a Wiener win over the unsharp baseline.</p>`
+      : "";
+
+  return `
+    <section class="quality-panel">
+      <h2>Outcome Audit</h2>
+      <p data-testid="current-case-summary">${escapeHtml(currentSummary)}</p>
+      <p data-testid="matrix-summary">${escapeHtml(matrixSummary)}</p>
+      ${noWinNotice}
+      <table class="quality-table" data-testid="matrix-table">
+        <thead>
+          <tr>
+            <th>Target</th>
+            <th>Radius (px)</th>
+            <th>Wiener vs blur</th>
+            <th>Wiener vs unsharp</th>
+            <th>Clip</th>
+            <th>Overshoot</th>
+            <th>Ringing</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${context.comparisonMatrix.cases
+            .map(
+              (caseSummary) => `
+                <tr>
+                  <th>${escapeHtml(caseSummary.targetLabel)}</th>
+                  <td>${formatNumber(caseSummary.blurRadiusPx, NUMBER_FORMATTING.oneDecimalDigits)}</td>
+                  <td>${escapeHtml(caseSummary.wienerVsBlurred.relation)}</td>
+                  <td>${escapeHtml(caseSummary.wienerVsUnsharp.relation)}</td>
+                  <td>${formatNumber(caseSummary.wienerDiagnostics.clippingFraction)}</td>
+                  <td>${formatNumber(caseSummary.wienerDiagnostics.overshootFraction)}</td>
+                  <td>${formatNumber(caseSummary.wienerDiagnostics.ringingEnergy)}</td>
+                </tr>
+              `,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </section>
+  `;
+}
+
 function createPanelGridMarkup() {
   const panels: ReadonlyArray<PanelDescriptor> = [
     { caption: PANEL_CAPTIONS.original, step: 1, testId: "canvas-original" },
@@ -340,6 +411,30 @@ function createPanelGridMarkup() {
   `;
 }
 
+function createAiSectionMarkup() {
+  const steps = APP_COPY.aiHowItWorksSteps.map((step) => `<li>${escapeHtml(step)}</li>`).join("");
+
+  return `
+    <section class="ai-section" data-testid="ai-section">
+      <div class="ai-section-intro">
+        <h2>${escapeHtml(APP_COPY.aiSectionHeading)}</h2>
+        <p>${escapeHtml(APP_COPY.aiSectionDescription)}</p>
+        <details class="ai-how-it-works">
+          <summary>${escapeHtml(APP_COPY.aiHowItWorksHeading)}</summary>
+          <ol>${steps}</ol>
+        </details>
+      </div>
+      <div class="ai-prompt-block">
+        <div class="ai-prompt-header">
+          <span class="ai-prompt-label">${escapeHtml(APP_COPY.aiPromptLabel)}</span>
+          <button class="ai-copy-btn" data-testid="copy-ai-prompt" type="button">${escapeHtml(APP_COPY.aiCopyButton)}</button>
+        </div>
+        <pre class="ai-prompt-text" data-testid="ai-prompt-text">${escapeHtml(AI_SETUP_PROMPT)}</pre>
+      </div>
+    </section>
+  `;
+}
+
 /**
  * Builds the full browser playground markup for the current state and derived
  * optics context.
@@ -349,6 +444,11 @@ export function createAppMarkup(state: AppState, context: AppRenderContext) {
 
   return `
     <main class="app-shell">
+      <section class="wip-banner" data-testid="wip-banner">
+        <p class="wip-banner-label">${escapeHtml(APP_COPY.wipBannerLabel)}</p>
+        <p class="wip-banner-title">${escapeHtml(APP_COPY.wipBannerTitle)}</p>
+        <p class="wip-banner-copy">${escapeHtml(APP_COPY.wipBannerDescription)}</p>
+      </section>
       <header class="header">
         <div class="header-top">
           <h1>${escapeHtml(APP_COPY.title)}</h1>
@@ -363,9 +463,6 @@ export function createAppMarkup(state: AppState, context: AppRenderContext) {
           <label class="inline-label">
             <select data-testid="focus-mode">${createFocusModeOptions(state.viewerParams.focusMode)}</select>
           </label>
-          <a class="relay-btn" href="https://pub-78d75f975fdc4f1cb9ef2d6168bb54ff.r2.dev/relay/webmcp-local-relay-latest.mcpb" download="webmcp-local-relay.mcpb">
-            &#x2193; Local Relay
-          </a>
         </div>
         <p data-testid="comparison-description">${escapeHtml(APP_COPY.comparisonDescription)}</p>
         <p data-testid="focus-mode-description">${escapeHtml(
@@ -394,6 +491,7 @@ export function createAppMarkup(state: AppState, context: AppRenderContext) {
       </div>
 
       ${createQualityPanelMarkup(context)}
+      ${createOutcomeAuditMarkup(context)}
 
       <div class="warnings" data-testid="warning-list">
         ${createWarningMarkup(context.warningEntries)}
@@ -408,6 +506,8 @@ export function createAppMarkup(state: AppState, context: AppRenderContext) {
         </div>
         <canvas data-testid="canvas-otf"></canvas>
       </section>
+
+      ${createAiSectionMarkup()}
     </main>
   `;
 }

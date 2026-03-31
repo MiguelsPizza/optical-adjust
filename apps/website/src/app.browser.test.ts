@@ -5,11 +5,12 @@ import {
   DEFAULT_RENDER_CONTROLS,
   WARNING_LABELS,
 } from "optics-constants";
-import { calculateBlurResult, createPillboxKernel } from "optics";
+import { calculateBlurResult, createPillboxKernel, evaluateComparisonMatrix } from "optics";
 import { compareCanvasCorrectionPaths, drawTestPattern } from "optics-render";
 import { FocusMode, type ViewerParams } from "optics-types";
 
 import { mountApp } from "./app.ts";
+import { APP_STATE_STORAGE_KEY } from "./app-state.ts";
 
 type ViewerParamsOverrides = Partial<Omit<ViewerParams, "prescription">> & {
   prescription?: Partial<ViewerParams["prescription"]>;
@@ -148,10 +149,18 @@ function blurInput(testId: string) {
 
 describe("website playground browser tests", () => {
   beforeEach(() => {
+    window.localStorage.clear();
     setupApp();
   });
 
   test("loads the playground and renders both correction paths with diagnostics", () => {
+    expect(queryRequired('[data-testid="wip-banner"]').textContent).toMatch(
+      /work in progress|wip/i,
+    );
+    expect(queryRequired('[data-testid="wip-banner"]').textContent).toMatch(
+      /not validated for real-world use/i,
+    );
+
     expect(queryRequired('[data-testid="preset-select"]')).toBeTruthy();
     expect(queryRequired('[data-testid="focus-mode"]')).toBeTruthy();
     expect(queryRequired('[data-testid="wiener-input"]')).toBeTruthy();
@@ -167,6 +176,23 @@ describe("website playground browser tests", () => {
     expect(queryRequired('[data-testid="canvas-otf"]')).toBeTruthy();
 
     expectUiToMatch(DEFAULT_PLAYGROUND_PRESET.params);
+
+    const matrixSummary = evaluateComparisonMatrix({
+      params: {
+        unsharpAmount: DEFAULT_RENDER_CONTROLS.unsharpAmount,
+        wiener: {
+          maxGain: DEFAULT_RENDER_CONTROLS.maxGain,
+          regularizationK: DEFAULT_RENDER_CONTROLS.regularizationK,
+        },
+      },
+    });
+
+    expect(queryRequired<HTMLElement>('[data-testid="matrix-summary"]').textContent).toContain(
+      `Wiener is better than unsharp retinal in ${matrixSummary.wienerVsUnsharp.betterCaseCount}/${matrixSummary.wienerVsUnsharp.totalCaseCount} cases`,
+    );
+    expect(queryRequired<HTMLElement>('[data-testid="matrix-no-win"]').textContent).toMatch(
+      /does not show a Wiener win/i,
+    );
   });
 
   test("left-eye preset surfaces the astigmatism-not-rendered warning", () => {
@@ -258,6 +284,59 @@ describe("website playground browser tests", () => {
     setInputValue("distance-input", "0.5");
 
     expectUiToMatch(buildViewerParams({ viewingDistanceM: 0.5 }));
+  });
+
+  test("reload restores the last persisted manual experiment state", () => {
+    setSelectValue("focus-mode", FocusMode.ManualResidual);
+    setInputValue("manual-residual-input", "1.5");
+    setInputValue("wiener-input", "0.01");
+    setInputValue("max-gain-input", "6");
+
+    expectUiToMatch(
+      buildViewerParams({
+        focusMode: FocusMode.ManualResidual,
+        manualResidualDiopters: 1.5,
+      }),
+      {
+        maxGain: 6,
+        regularizationK: 0.01,
+      },
+    );
+    expect(window.localStorage.getItem(APP_STATE_STORAGE_KEY)).toContain(
+      `"focusMode":"${FocusMode.ManualResidual}"`,
+    );
+
+    setupApp();
+
+    expect(queryRequired<HTMLSelectElement>('[data-testid="focus-mode"]').value).toBe(
+      FocusMode.ManualResidual,
+    );
+    expect(queryRequired<HTMLInputElement>('[data-testid="manual-residual-input"]').value).toBe(
+      "1.5",
+    );
+    expect(queryRequired<HTMLInputElement>('[data-testid="wiener-input"]').value).toBe("0.01");
+    expect(queryRequired<HTMLInputElement>('[data-testid="max-gain-input"]').value).toBe("6");
+    expectUiToMatch(
+      buildViewerParams({
+        focusMode: FocusMode.ManualResidual,
+        manualResidualDiopters: 1.5,
+      }),
+      {
+        maxGain: 6,
+        regularizationK: 0.01,
+      },
+    );
+  });
+
+  test("invalid persisted state falls back to the default preset safely", () => {
+    window.localStorage.setItem(APP_STATE_STORAGE_KEY, '{"broken":true}');
+
+    setupApp();
+
+    expect(queryRequired<HTMLSelectElement>('[data-testid="focus-mode"]').value).toBe(
+      DEFAULT_PLAYGROUND_PRESET.params.focusMode,
+    );
+    expectUiToMatch(DEFAULT_PLAYGROUND_PRESET.params);
   });
 
   test("out-of-range numeric controls restore the last valid state on blur", () => {
@@ -384,5 +463,6 @@ describe("website playground browser tests", () => {
     const otfCanvas = queryRequired<HTMLCanvasElement>('[data-testid="canvas-otf"]');
     expect(otfCanvas.width).toBe(APP_CANVAS_DIMENSIONS.otfWidth);
     expect(otfCanvas.height).toBe(APP_CANVAS_DIMENSIONS.otfHeight);
+    expect(queryRequired('[data-testid="matrix-table"] tbody')?.children.length).toBe(12);
   });
 });

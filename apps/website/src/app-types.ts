@@ -1,4 +1,11 @@
-import type { BlurResult, BlurWarningKey, ComparisonCaseResult, ViewerParams } from "optics-types";
+import type {
+  BlurResult,
+  BlurWarningKey,
+  ComparisonCaseResult,
+  ComparisonMatrixSummary,
+  ImageQualityComparisonSummary,
+  ViewerParams,
+} from "optics-types";
 
 /**
  * Mutable browser state for the playground shell.
@@ -17,6 +24,12 @@ export interface AppState<TParams extends ViewerParams = ViewerParams> {
 export interface AppRenderContext {
   blurResult: BlurResult;
   comparisonResult: ComparisonCaseResult;
+  comparisonMatrix: ComparisonMatrixSummary;
+  currentComparisons: {
+    readonly unsharpVsBlurred: ImageQualityComparisonSummary;
+    readonly wienerVsBlurred: ImageQualityComparisonSummary;
+    readonly wienerVsUnsharp: ImageQualityComparisonSummary;
+  };
   warningEntries: Array<[BlurWarningKey, boolean]>;
 }
 

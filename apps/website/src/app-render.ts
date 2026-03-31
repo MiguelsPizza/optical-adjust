@@ -1,5 +1,10 @@
 import { APP_CANVAS_DIMENSIONS } from "optics-constants";
-import { calculateBlurResult, createPillboxKernel } from "optics";
+import {
+  calculateBlurResult,
+  createPillboxKernel,
+  evaluateComparisonMatrix,
+  summarizeImageQualityComparison,
+} from "optics";
 import {
   compareCanvasCorrectionPaths,
   drawTestPattern,
@@ -39,10 +44,37 @@ export function createRenderContext(state: AppState): AppRenderContext {
       regularizationK: state.regularizationK,
     },
   });
+  const comparisonMatrix = evaluateComparisonMatrix({
+    params: {
+      unsharpAmount: state.unsharpAmount,
+      wiener: {
+        maxGain: state.maxGain,
+        regularizationK: state.regularizationK,
+      },
+    },
+  });
 
   return {
     blurResult,
+    comparisonMatrix,
     comparisonResult,
+    currentComparisons: {
+      unsharpVsBlurred: summarizeImageQualityComparison(
+        comparisonResult.unsharpRetinalQuality,
+        comparisonResult.blurredOriginalQuality,
+        "blurred original",
+      ),
+      wienerVsBlurred: summarizeImageQualityComparison(
+        comparisonResult.wienerRetinalQuality,
+        comparisonResult.blurredOriginalQuality,
+        "blurred original",
+      ),
+      wienerVsUnsharp: summarizeImageQualityComparison(
+        comparisonResult.wienerRetinalQuality,
+        comparisonResult.unsharpRetinalQuality,
+        "unsharp retinal",
+      ),
+    },
     warningEntries: collectWarningEntries(blurResult),
   };
 }

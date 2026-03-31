@@ -34,7 +34,7 @@ The current suite does not yet prove, with enough rigor, that:
 
 Current tests:
 
-- [apps/website/src/app.browser.test.ts](/Users/alexmnahas/personalRepos/optical-adjust/apps/website/src/app.browser.test.ts)
+- [apps/website/src/app.browser.test.ts](../apps/website/src/app.browser.test.ts)
 
 What currently exists:
 
@@ -65,10 +65,10 @@ Verdict:
 
 Current tests:
 
-- [packages/optics/tests/deconvolve.test.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/tests/deconvolve.test.ts)
-- [packages/optics/tests/otf.test.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/tests/otf.test.ts)
-- [packages/optics/tests/otf-analytic.test.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/tests/otf-analytic.test.ts)
-- [packages/optics-render/tests/browser.test.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics-render/tests/browser.test.ts)
+- [packages/optics/tests/deconvolve.test.ts](../packages/optics/tests/deconvolve.test.ts)
+- [packages/optics/tests/otf.test.ts](../packages/optics/tests/otf.test.ts)
+- [packages/optics/tests/otf-analytic.test.ts](../packages/optics/tests/otf-analytic.test.ts)
+- [packages/optics-render/tests/browser.test.ts](../packages/optics-render/tests/browser.test.ts)
 
 What currently exists:
 
@@ -199,3 +199,18 @@ The repo already has the beginnings of both validation layers.
 - Layer 2: present but still smoke-level relative to the product claim
 
 So the next step is not to invent a testing strategy from scratch. It is to harden the one that already exists into a genuine POC validation harness.
+
+## 2026-03-31 implementation note
+
+The repo now closes several of the gaps listed above:
+
+- Layer 1 now includes reload/state-persistence coverage for the website shell.
+- Layer 2 now has an explicit comparison-matrix summary over four synthetic targets and three blur radii, with per-case better/tied/worse outcomes against both the blurred-original and unsharp baselines.
+- The website now exposes that matrix outcome directly, including the current default case where Wiener does not beat the unsharp baseline on the shared matrix.
+- Browser tests still validate package/browser parity, and the website suite now checks the new audit surface as part of the mounted app contract.
+
+What still remains outside code-only validation is unchanged:
+
+- human readability benefit
+- subjective artifact tolerance
+- calibrated-user stability and usefulness
