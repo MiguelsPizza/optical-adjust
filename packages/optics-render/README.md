@@ -3,7 +3,7 @@
 Browser-mode tests for this package must be run with direct `vp test` from this directory:
 
 ```bash
-cd /Users/alexmnahas/personalRepos/optical-adjust/packages/optics-render
+cd packages/optics-render
 vp test
 ```
 

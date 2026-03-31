@@ -26,7 +26,7 @@ import { besselJ1 } from "./bessel.ts";
  *   https://dlmf.nist.gov/10.2
  * - Project verification derives the display-space form from the standard
  *   disk transform
- *   /Users/alexmnahas/personalRepos/optical-adjust/docs/equation_source_verification_notes.md
+ *   docs/equation_source_verification_notes.md
  */
 export function analyticDiskOtf(radiusPx: Pixels, frequency: CyclesPerPixel): UnitlessScalar {
   if (radiusPx <= 0) {

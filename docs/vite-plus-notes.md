@@ -14,8 +14,8 @@ Repo-local notes for how this project should use Vite+ today, based on:
 
 - Use `vp test` at the repo root for the non-browser package suite only.
 - Run browser suites with direct `vp test` from:
-  - `/Users/alexmnahas/personalRepos/optical-adjust/packages/optics-render`
-  - `/Users/alexmnahas/personalRepos/optical-adjust/apps/website`
+  - `packages/optics-render`
+  - `apps/website`
 - Use `bash scripts/test-all.sh` for the full test suite.
 - Use `bash scripts/ready.sh` for full validation plus build.
 - Do not wrap browser suites in root `vp run` helpers.

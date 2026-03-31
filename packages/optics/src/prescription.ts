@@ -28,7 +28,7 @@ export function normalizeAxis(axis: Degrees): Degrees {
  *
  * Sources:
  * - Project source-verification note collecting the ophthalmic derivation
- *   /Users/alexmnahas/personalRepos/optical-adjust/docs/equation_source_verification_notes.md
+ *   docs/equation_source_verification_notes.md
  * - Thibos et al.
  *   https://pubmed.ncbi.nlm.nih.gov/16460319/
  * - Keating.

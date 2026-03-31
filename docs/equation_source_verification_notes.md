@@ -10,9 +10,9 @@ This is the provenance document for the repo.
 
 ## Surviving Local Docs
 
-- [optics_poc_concept.md](/Users/alexmnahas/personalRepos/optical-adjust/docs/optics_poc_concept.md)
-- [phase_0_3_build_spec.md](/Users/alexmnahas/personalRepos/optical-adjust/docs/phase_0_3_build_spec.md)
-- [poc_e2e_validation_plan.md](/Users/alexmnahas/personalRepos/optical-adjust/docs/poc_e2e_validation_plan.md)
+- [optics_poc_concept.md](optics_poc_concept.md)
+- [phase_0_3_build_spec.md](phase_0_3_build_spec.md)
+- [poc_e2e_validation_plan.md](poc_e2e_validation_plan.md)
 
 ## Final Verification Summary
 
@@ -30,13 +30,13 @@ Overall result:
 
 ## Implementation Files
 
-- [focus.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/src/focus.ts)
-- [equations.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/src/equations.ts)
-- [otf.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/src/otf.ts)
-- [prescription.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/src/prescription.ts)
-- [diffraction.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/src/diffraction.ts)
-- [wiener.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/src/wiener.ts)
-- [bessel.ts](/Users/alexmnahas/personalRepos/optical-adjust/packages/optics/src/bessel.ts)
+- [focus.ts](../packages/optics/src/focus.ts)
+- [equations.ts](../packages/optics/src/equations.ts)
+- [otf.ts](../packages/optics/src/otf.ts)
+- [prescription.ts](../packages/optics/src/prescription.ts)
+- [diffraction.ts](../packages/optics/src/diffraction.ts)
+- [wiener.ts](../packages/optics/src/wiener.ts)
+- [bessel.ts](../packages/optics/src/bessel.ts)
 
 ## Equation Inventory
 

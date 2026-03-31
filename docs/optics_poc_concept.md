@@ -108,7 +108,7 @@ That means:
 - clipping and ringing must stay bounded
 - the win must show up in a task or preference metric, not only in simulated images
 
-The concrete Phase 0-3 thresholds and execution rules live in [phase_0_3_build_spec.md](/Users/alexmnahas/personalRepos/optical-adjust/docs/phase_0_3_build_spec.md).
+The concrete Phase 0-3 thresholds and execution rules live in [phase_0_3_build_spec.md](phase_0_3_build_spec.md).
 
 ## Primary Sources
 

@@ -124,9 +124,9 @@ function createBlurResult(
  *
  * Source summary:
  * - POC concept
- *   /Users/alexmnahas/personalRepos/optical-adjust/docs/optics_poc_concept.md
+ *   docs/optics_poc_concept.md
  * - Build spec
- *   /Users/alexmnahas/personalRepos/optical-adjust/docs/phase_0_3_build_spec.md
+ *   docs/phase_0_3_build_spec.md
  * - Ophthalmic vergence/prescription conventions
  *   https://webeye.ophth.uiowa.edu/eyeforum/video/Refraction/Intro-Optics-Refract-Errors/index.htm
  */
