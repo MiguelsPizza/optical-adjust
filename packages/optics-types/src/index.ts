@@ -1,5 +1,5 @@
 export * from "./blur-result.ts";
-export * from "./correction-mode.ts";
+export * from "./comparison.ts";
 export * from "./feasibility.ts";
 export * from "./focus-mode.ts";
 export * from "./image-grid.ts";

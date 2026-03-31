@@ -1,15 +1,11 @@
-import type { ImageGrid as SharedImageGrid, Pixels, UnitlessScalar } from "optics-types";
+import type {
+  ImageGrid as SharedImageGrid,
+  ImageQualityMetrics,
+  Pixels,
+  UnitlessScalar,
+} from "optics-types";
 
 export type ImageGrid = SharedImageGrid;
-
-/**
- * Global image-similarity metrics used by the numeric regression tests.
- */
-export interface ImageQualityMetrics {
-  psnr: number;
-  rmse: number;
-  ssim: number;
-}
 
 interface ImageStatistics {
   mean: number;

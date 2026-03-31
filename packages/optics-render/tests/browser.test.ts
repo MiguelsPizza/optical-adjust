@@ -1,23 +1,26 @@
 import { describe, expect, test } from "vite-plus/test";
 import {
-  convolveImageSpatial,
+  compareCorrectionPaths,
   createPillboxKernel,
-  createSlantedEdgeTarget,
-  deconvolveImage,
   firstOtfZero,
   measureImageQuality,
 } from "../../optics/src/index.ts";
 
 import {
-  blurCanvasToCanvas,
-  deconvolveCanvasToCanvas,
+  COMPARISON_BLUR_RADII,
+  COMPARISON_FIXTURE_SIZE,
+  COMPARISON_METRIC_GOLDENS,
+  COMPARISON_TARGET_FACTORIES,
+  DEFAULT_COMPARISON_PARAMS,
+} from "../../../tests/support/comparison-goldens.ts";
+import {
+  compareCanvasCorrectionPaths,
   imageDataToLinearLuminance,
   linearChannelToSrgb,
   readCanvasLuminance,
   renderAnalyticOtfToCanvas,
   renderPsfToCanvas,
   srgbChannelToLinear,
-  unsharpMaskCanvasToCanvas,
   writeFloatImageToCanvas,
 } from "../src/index.ts";
 
@@ -40,10 +43,6 @@ function countRedMarkerPixels(pixels: Uint8ClampedArray, width: number, height: 
     }
   }
   return count;
-}
-
-function clampImage(data: Float64Array) {
-  return Float64Array.from(data, (value) => Math.min(1, Math.max(0, value)));
 }
 
 describe("optics-render browser helpers", () => {
@@ -104,109 +103,119 @@ describe("optics-render browser helpers", () => {
     expect(darkPixelCount).toBeGreaterThan(canvas.width);
   });
 
-  test("browser canvas blur and deconvolution remain aligned with optics-core expectations", () => {
-    const wienerParams = {
-      maxGain: 4,
-      regularizationK: 0.001,
-    };
-    const targets = [createSlantedEdgeTarget(64, 64)];
-    const radii = [1, 1.5, 2];
-
-    for (const target of targets) {
-      for (const radius of radii) {
+  test("browser comparison helper stays aligned with optics-core across the shared matrix", () => {
+    for (const { create, slug } of COMPARISON_TARGET_FACTORIES) {
+      for (const radius of COMPARISON_BLUR_RADII) {
+        const target = create(COMPARISON_FIXTURE_SIZE.width, COMPARISON_FIXTURE_SIZE.height);
         const source = document.createElement("canvas");
         source.width = target.width;
         source.height = target.height;
         writeFloatImageToCanvas(source, target.data, target.width, target.height);
 
-        const kernel = createPillboxKernel(radius);
-        const blurred = document.createElement("canvas");
-        const corrected = document.createElement("canvas");
-        const retinalCorrected = document.createElement("canvas");
-
-        blurCanvasToCanvas(source, blurred, kernel);
-        const restored = deconvolveCanvasToCanvas(source, corrected, kernel, wienerParams);
-        blurCanvasToCanvas(corrected, retinalCorrected, kernel);
-
         const sourceLuminance = readCanvasLuminance(source);
-        const blurredLuminance = readCanvasLuminance(blurred);
-        const correctedLuminance = readCanvasLuminance(corrected);
-        const retinalCorrectedLuminance = readCanvasLuminance(retinalCorrected);
+        const sourceGrid = { data: sourceLuminance, height: target.height, width: target.width };
+        const kernel = createPillboxKernel(radius);
+        const browserResult = compareCanvasCorrectionPaths(
+          source,
+          kernel,
+          DEFAULT_COMPARISON_PARAMS,
+        );
+        const coreResult = compareCorrectionPaths(sourceGrid, kernel, DEFAULT_COMPARISON_PARAMS);
+        const key = `${slug}:${radius}` as keyof typeof COMPARISON_METRIC_GOLDENS;
+        const golden = COMPARISON_METRIC_GOLDENS[key];
 
-        const expectedBlur = convolveImageSpatial(
-          { data: sourceLuminance, height: target.height, width: target.width },
-          kernel,
-        );
-        const expectedCorrected = deconvolveImage(
-          { data: sourceLuminance, height: target.height, width: target.width },
-          kernel,
-          wienerParams,
-        );
-        const expectedRetinalCorrected = convolveImageSpatial(
-          {
-            data: clampImage(expectedCorrected.data),
-            height: target.height,
-            width: target.width,
-          },
-          kernel,
-        );
-
-        const blurParity = measureImageQuality(
-          expectedBlur.data,
-          blurredLuminance,
+        const blurredParity = measureImageQuality(
+          coreResult.blurredOriginal.data,
+          browserResult.blurredOriginal.data,
           target.width,
           target.height,
         );
-        const correctedParity = measureImageQuality(
-          clampImage(expectedCorrected.data),
-          correctedLuminance,
+        const wienerParity = measureImageQuality(
+          coreResult.wienerRetinal.data,
+          browserResult.wienerRetinal.data,
           target.width,
           target.height,
         );
-        const retinalCorrectedParity = measureImageQuality(
-          expectedRetinalCorrected.data,
-          retinalCorrectedLuminance,
+        const unsharpParity = measureImageQuality(
+          coreResult.unsharpRetinal.data,
+          browserResult.unsharpRetinal.data,
           target.width,
           target.height,
         );
 
-        expect(blurParity.rmse).toBeLessThan(0.02);
-        expect(blurParity.ssim).toBeGreaterThan(0.99);
-        expect(correctedParity.rmse).toBeLessThan(0.025);
-        expect(correctedParity.ssim).toBeGreaterThan(0.98);
-        expect(retinalCorrectedParity.rmse).toBeLessThan(0.03);
-        expect(retinalCorrectedParity.ssim).toBeGreaterThan(0.97);
-        expect(restored.maxGainSeen).toBeGreaterThan(1);
+        expect(blurredParity.rmse).toBeLessThan(1e-12);
+        expect(wienerParity.rmse).toBeLessThan(1e-12);
+        expect(unsharpParity.rmse).toBeLessThan(1e-12);
+        expect(browserResult.wienerDiagnostics.clippingFraction).toBeCloseTo(
+          coreResult.wienerDiagnostics.clippingFraction,
+          12,
+        );
+        expect(browserResult.wienerDiagnostics.overshootFraction).toBeCloseTo(
+          coreResult.wienerDiagnostics.overshootFraction,
+          12,
+        );
+        expect(browserResult.wienerDiagnostics.ringingEnergy).toBeCloseTo(
+          coreResult.wienerDiagnostics.ringingEnergy,
+          12,
+        );
+        expect(browserResult.wienerDiagnostics.maxWienerGain).toBeCloseTo(
+          coreResult.wienerDiagnostics.maxWienerGain,
+          12,
+        );
+        expect(browserResult.blurredOriginalQuality.rmse).toBeCloseTo(golden.blurred.rmse, 6);
+        expect(browserResult.blurredOriginalQuality.psnr).toBeCloseTo(golden.blurred.psnr, 6);
+        expect(browserResult.blurredOriginalQuality.ssim).toBeCloseTo(golden.blurred.ssim, 6);
+        expect(browserResult.unsharpRetinalQuality.rmse).toBeCloseTo(golden.unsharp.rmse, 6);
+        expect(browserResult.unsharpRetinalQuality.psnr).toBeCloseTo(golden.unsharp.psnr, 6);
+        expect(browserResult.unsharpRetinalQuality.ssim).toBeCloseTo(golden.unsharp.ssim, 6);
+        expect(browserResult.wienerRetinalQuality.rmse).toBeCloseTo(golden.wiener.rmse, 6);
+        expect(browserResult.wienerRetinalQuality.psnr).toBeCloseTo(golden.wiener.psnr, 6);
+        expect(browserResult.wienerRetinalQuality.ssim).toBeCloseTo(golden.wiener.ssim, 6);
+        expect(browserResult.wienerDiagnostics.clippingFraction).toBeCloseTo(
+          golden.diagnostics.clippingFraction,
+          6,
+        );
+        expect(browserResult.wienerDiagnostics.overshootFraction).toBeCloseTo(
+          golden.diagnostics.overshootFraction,
+          6,
+        );
+        expect(browserResult.wienerDiagnostics.ringingEnergy).toBeCloseTo(
+          golden.diagnostics.ringingEnergy,
+          6,
+        );
       }
     }
   });
 
-  test("browser canvas unsharp masking matches the baseline edge-enhancement formula", () => {
-    const amount = 1.5;
-    const target = createSlantedEdgeTarget(64, 64);
+  test("canvas writes preserve the comparison-result images within browser tolerances", () => {
+    const target = COMPARISON_TARGET_FACTORIES[2]!.create(
+      COMPARISON_FIXTURE_SIZE.width,
+      COMPARISON_FIXTURE_SIZE.height,
+    );
     const source = document.createElement("canvas");
     source.width = target.width;
     source.height = target.height;
     writeFloatImageToCanvas(source, target.data, target.width, target.height);
 
-    const kernel = createPillboxKernel(1.5);
-    const corrected = document.createElement("canvas");
-
-    unsharpMaskCanvasToCanvas(source, corrected, kernel, { amount });
-
-    const sourceLuminance = readCanvasLuminance(source);
-    const correctedLuminance = readCanvasLuminance(corrected);
-    const expectedBlur = convolveImageSpatial(
-      { data: sourceLuminance, height: target.height, width: target.width },
-      kernel,
+    const result = compareCanvasCorrectionPaths(
+      source,
+      createPillboxKernel(COMPARISON_BLUR_RADII[1]),
+      DEFAULT_COMPARISON_PARAMS,
     );
-    const expectedCorrected = Float64Array.from(sourceLuminance, (value, index) => {
-      const blurredValue = expectedBlur.data[index] ?? 0;
-      return value + amount * (value - blurredValue);
-    });
+    const rendered = document.createElement("canvas");
+    rendered.width = target.width;
+    rendered.height = target.height;
+    writeFloatImageToCanvas(
+      rendered,
+      result.wienerRetinal.data,
+      result.wienerRetinal.width,
+      result.wienerRetinal.height,
+    );
+
+    const renderedLuminance = readCanvasLuminance(rendered);
     const parity = measureImageQuality(
-      clampImage(expectedCorrected),
-      correctedLuminance,
+      result.wienerRetinal.data,
+      renderedLuminance,
       target.width,
       target.height,
     );

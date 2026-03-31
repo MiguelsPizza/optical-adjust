@@ -28,8 +28,8 @@ interface NormalizedViewerParams extends ViewerParams {
 function applyViewerDefaults(input: ViewerParams): NormalizedViewerParams {
   return {
     ...input,
-    pupilDiameterMm: input.pupilDiameterMm || DEFAULT_PUPIL_MM,
-    screenPpi: input.screenPpi || DEFAULT_SCREEN_PPI,
+    pupilDiameterMm: input.pupilDiameterMm ?? DEFAULT_PUPIL_MM,
+    screenPpi: input.screenPpi ?? DEFAULT_SCREEN_PPI,
   };
 }
 
@@ -72,7 +72,7 @@ function buildWarningFlags(
   firstOtfZero: BlurResult["firstOtfZero"],
   focusMode: FocusMode,
   cylinderDiopters: Diopters,
-) {
+): BlurResult["warnings"] {
   return {
     astigmatismNotRendered: cylinderDiopters !== 0,
     calibrationUncertainty: focusMode !== FocusMode.ManualResidual,

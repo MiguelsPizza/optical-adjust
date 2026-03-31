@@ -1,53 +1,53 @@
 import { describe, expect, test } from "vite-plus/test";
 
+import { compareCorrectionPaths, createPillboxKernel } from "../src/index.ts";
 import {
-  convolveImageSpatial,
-  createCheckerBarTarget,
-  createPillboxKernel,
-  createSiemensStarTarget,
-  createSlantedEdgeTarget,
-  createTextStrokeTarget,
-  deconvolveImage,
-  measureImageQuality,
-} from "../src/index.ts";
+  COMPARISON_BLUR_RADII,
+  COMPARISON_FIXTURE_SIZE,
+  COMPARISON_METRIC_GOLDENS,
+  COMPARISON_TARGET_FACTORIES,
+  DEFAULT_COMPARISON_PARAMS,
+} from "../../../tests/support/comparison-goldens.ts";
 
 describe("deconvolution pipeline", () => {
-  const width = 64;
-  const height = 64;
-  const wienerParams = { maxGain: 4, regularizationK: 0.001 };
-  const blurRadii = [1, 1.5, 2.5];
-  const targets = [
-    { image: createTextStrokeTarget(width, height), name: "text-like strokes" },
-    { image: createSiemensStarTarget(width, height), name: "Siemens star" },
-    { image: createSlantedEdgeTarget(width, height), name: "slanted edge" },
-    { image: createCheckerBarTarget(width, height), name: "checker/bar" },
-  ];
+  for (const { create, name, slug } of COMPARISON_TARGET_FACTORIES) {
+    test(`locks the metric-golden reference case for ${name}`, () => {
+      const image = create(COMPARISON_FIXTURE_SIZE.width, COMPARISON_FIXTURE_SIZE.height);
 
-  for (const { image, name } of targets) {
-    test(`prefiltered ${name} stays closer to the original after eye blur`, () => {
-      for (const radius of blurRadii) {
-        const kernel = createPillboxKernel(radius);
-        const blurredOriginal = convolveImageSpatial(image, kernel);
-        const prefiltered = deconvolveImage(image, kernel, wienerParams);
-        const retinalCorrected = convolveImageSpatial(prefiltered, kernel);
-
-        const blurredMetrics = measureImageQuality(
-          image.data,
-          blurredOriginal.data,
-          image.width,
-          image.height,
+      for (const radius of COMPARISON_BLUR_RADII) {
+        const result = compareCorrectionPaths(
+          image,
+          createPillboxKernel(radius),
+          DEFAULT_COMPARISON_PARAMS,
         );
-        const correctedMetrics = measureImageQuality(
-          image.data,
-          retinalCorrected.data,
-          image.width,
-          image.height,
-        );
+        const key = `${slug}:${radius}` as keyof typeof COMPARISON_METRIC_GOLDENS;
+        const golden = COMPARISON_METRIC_GOLDENS[key];
 
-        expect(correctedMetrics.rmse).toBeLessThan(blurredMetrics.rmse);
-        expect(correctedMetrics.psnr).toBeGreaterThan(blurredMetrics.psnr);
-        expect(correctedMetrics.ssim).toBeGreaterThan(blurredMetrics.ssim);
-        expect(prefiltered.maxGainSeen).toBeLessThanOrEqual(wienerParams.maxGain);
+        expect(result.blurredOriginalQuality.rmse).toBeCloseTo(golden.blurred.rmse, 6);
+        expect(result.blurredOriginalQuality.psnr).toBeCloseTo(golden.blurred.psnr, 6);
+        expect(result.blurredOriginalQuality.ssim).toBeCloseTo(golden.blurred.ssim, 6);
+        expect(result.unsharpRetinalQuality.rmse).toBeCloseTo(golden.unsharp.rmse, 6);
+        expect(result.unsharpRetinalQuality.psnr).toBeCloseTo(golden.unsharp.psnr, 6);
+        expect(result.unsharpRetinalQuality.ssim).toBeCloseTo(golden.unsharp.ssim, 6);
+        expect(result.wienerRetinalQuality.rmse).toBeCloseTo(golden.wiener.rmse, 6);
+        expect(result.wienerRetinalQuality.psnr).toBeCloseTo(golden.wiener.psnr, 6);
+        expect(result.wienerRetinalQuality.ssim).toBeCloseTo(golden.wiener.ssim, 6);
+        expect(result.wienerDiagnostics.clippingFraction).toBeCloseTo(
+          golden.diagnostics.clippingFraction,
+          6,
+        );
+        expect(result.wienerDiagnostics.overshootFraction).toBeCloseTo(
+          golden.diagnostics.overshootFraction,
+          6,
+        );
+        expect(result.wienerDiagnostics.ringingEnergy).toBeCloseTo(
+          golden.diagnostics.ringingEnergy,
+          6,
+        );
+        expect(result.wienerDiagnostics.maxWienerGain).toBeCloseTo(
+          golden.diagnostics.maxWienerGain,
+          6,
+        );
       }
     });
   }

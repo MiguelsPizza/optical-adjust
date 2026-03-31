@@ -1,9 +1,11 @@
 import {
+  compareCorrectionPaths,
   convolveImageSpatial,
   deconvolveImage,
   firstOtfZero,
   sampleAnalyticOtf,
-} from "../../optics/src/index.ts";
+  unsharpMaskImage,
+} from "optics";
 import {
   CANVAS_2D_CONTEXT_ID,
   ERROR_MESSAGES,
@@ -11,14 +13,15 @@ import {
   OTF_PLOT_STYLE,
   SRGB_TRANSFER,
   TEST_PATTERN,
-} from "../../optics-constants/src/index.ts";
+} from "optics-constants";
 import type {
+  ComparisonCaseResult,
   ImageGrid,
   Nullable,
   OtfSample,
   PsfKernel,
   WienerParams,
-} from "../../optics-types/src/index.ts";
+} from "optics-types";
 
 import {
   imageDataToLinearLuminance,
@@ -41,10 +44,6 @@ function imageDataToGrid(imageData: ImageData): ImageGrid {
     height: imageData.height,
     width: imageData.width,
   };
-}
-
-function clampLinearImage(data: Float64Array) {
-  return Float64Array.from(data, (value) => Math.min(1, Math.max(0, value)));
 }
 
 export function drawTestPattern(canvas: HTMLCanvasElement) {
@@ -137,6 +136,12 @@ export function blurCanvasToCanvas(
   writeFloatImageToCanvas(destinationCanvas, blurred.data, blurred.width, blurred.height);
 }
 
+export function canvasToImageGrid(canvas: HTMLCanvasElement): ImageGrid {
+  const context = getContext(canvas);
+  const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+  return imageDataToGrid(imageData);
+}
+
 export function deconvolveCanvasToCanvas(
   sourceCanvas: HTMLCanvasElement,
   destinationCanvas: HTMLCanvasElement,
@@ -158,23 +163,22 @@ export function unsharpMaskCanvasToCanvas(
   kernel: PsfKernel,
   params: { amount: number },
 ) {
-  const sourceContext = getContext(sourceCanvas);
-  const imageData = sourceContext.getImageData(0, 0, sourceCanvas.width, sourceCanvas.height);
-  const sourceGrid = imageDataToGrid(imageData);
-  const blurred = convolveImageSpatial(sourceGrid, kernel);
-  const corrected = Float64Array.from(sourceGrid.data, (value, index) => {
-    const blurredValue = blurred.data[index] ?? 0;
-    return value + params.amount * (value - blurredValue);
-  });
+  const corrected = unsharpMaskImage(canvasToImageGrid(sourceCanvas), kernel, params);
 
   destinationCanvas.width = sourceCanvas.width;
   destinationCanvas.height = sourceCanvas.height;
-  writeFloatImageToCanvas(
-    destinationCanvas,
-    clampLinearImage(corrected),
-    sourceGrid.width,
-    sourceGrid.height,
-  );
+  writeFloatImageToCanvas(destinationCanvas, corrected.data, corrected.width, corrected.height);
+}
+
+export function compareCanvasCorrectionPaths(
+  sourceCanvas: HTMLCanvasElement,
+  kernel: PsfKernel,
+  params: {
+    unsharpAmount: number;
+    wiener: WienerParams;
+  },
+): ComparisonCaseResult {
+  return compareCorrectionPaths(canvasToImageGrid(sourceCanvas), kernel, params);
 }
 
 export function cloneCanvasImage(sourceCanvas: HTMLCanvasElement) {

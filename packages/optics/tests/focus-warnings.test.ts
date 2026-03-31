@@ -12,7 +12,7 @@ describe("blur-result defaults and warning flags", () => {
     expect(DEFAULT_PLAYGROUND_PRESET.params.prescription.axis).toBe(0);
   });
 
-  test("fills in default pupil and screen values when callers provide zero", () => {
+  test("preserves explicit zero pupil and screen values instead of silently defaulting them", () => {
     const result = calculateBlurResult({
       focusMode: FocusMode.ManualResidual,
       manualResidualDiopters: 0.1,
@@ -22,8 +22,8 @@ describe("blur-result defaults and warning flags", () => {
       viewingDistanceM: 0.5,
     });
 
-    expect(result.pupilDiameterMm).toBe(4);
-    expect(result.screenPpi).toBe(254);
+    expect(result.pupilDiameterMm).toBe(0);
+    expect(result.screenPpi).toBe(0);
   });
 
   test("marks inferred focus states as calibration-uncertain", () => {

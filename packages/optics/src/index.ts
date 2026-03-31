@@ -1,4 +1,5 @@
 export * from "./bessel.ts";
+export * from "./comparison.ts";
 export * from "./deconvolution.ts";
 export * from "./diffraction.ts";
 export * from "./equations.ts";
