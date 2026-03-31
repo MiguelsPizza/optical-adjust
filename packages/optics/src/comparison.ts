@@ -1,23 +1,26 @@
 import { clamp } from "./utils.ts";
 import { convolveImageSpatial, deconvolveImage } from "./deconvolution.ts";
 import { measureImageQuality } from "./image-quality.ts";
-import type { ComparisonCaseResult, ImageGrid, PsfKernel, WienerParams } from "optics-types";
+import type {
+  ArtifactDiagnostics,
+  ComparisonCaseResult,
+  ComparisonPathParams,
+  ImageGrid,
+  ImageQualityMetrics,
+  PsfKernel,
+  UnsharpMaskParams,
+} from "optics-types";
 
 const ARTIFACT_EPSILON = 1e-3;
 const CLIPPING_EPSILON = 1e-12;
 const NEIGHBORHOOD_RADIUS = 1;
 
-interface UnsharpMaskParams {
-  amount: number;
-}
-
-interface ComparisonPathParams {
-  readonly unsharpAmount: number;
-  readonly wiener: WienerParams;
-}
-
 function createImageGrid(data: Float64Array, width: number, height: number): ImageGrid {
   return { data, height, width };
+}
+
+function measureGridQuality(reference: ImageGrid, candidate: ImageGrid): ImageQualityMetrics {
+  return measureImageQuality(reference.data, candidate.data, reference.width, reference.height);
 }
 
 /**
@@ -90,6 +93,47 @@ function calculateEnvelopeExtrema(reference: ImageGrid, centerX: number, centerY
   return { localMax, localMin };
 }
 
+function createWienerDiagnostics(
+  sourceImage: ImageGrid,
+  rawCorrected: ReturnType<typeof deconvolveImage>,
+  retinalImage: ImageGrid,
+): ArtifactDiagnostics {
+  return {
+    clippingFraction: calculateClippingFraction(rawCorrected.data),
+    maxWienerGain: rawCorrected.maxGainSeen,
+    ...calculateRingingArtifactMetrics(sourceImage, retinalImage),
+  };
+}
+
+function createWienerComparisonPath(
+  sourceImage: ImageGrid,
+  kernel: PsfKernel,
+  params: ComparisonPathParams,
+) {
+  const rawCorrected = deconvolveImage(sourceImage, kernel, params.wiener);
+  const rawRetinal = convolveImageSpatial(rawCorrected, kernel);
+  const corrected = clampImageGrid(rawCorrected);
+  const retinal = convolveImageSpatial(corrected, kernel);
+
+  return {
+    corrected,
+    diagnostics: createWienerDiagnostics(sourceImage, rawCorrected, rawRetinal),
+    retinal,
+  };
+}
+
+function createUnsharpComparisonPath(
+  sourceImage: ImageGrid,
+  kernel: PsfKernel,
+  params: ComparisonPathParams,
+) {
+  const corrected = unsharpMaskImage(sourceImage, kernel, { amount: params.unsharpAmount });
+  return {
+    corrected,
+    retinal: convolveImageSpatial(corrected, kernel),
+  };
+}
+
 /**
  * Measures overshoot frequency and energy by comparing a candidate image
  * against the local luminance envelope of the reference image.
@@ -141,41 +185,18 @@ export function compareCorrectionPaths(
   params: ComparisonPathParams,
 ): ComparisonCaseResult {
   const blurredOriginal = convolveImageSpatial(image, kernel);
-  const wienerCorrectedRaw = deconvolveImage(image, kernel, params.wiener);
-  const wienerRawRetinal = convolveImageSpatial(wienerCorrectedRaw, kernel);
-  const wienerCorrected = clampImageGrid(wienerCorrectedRaw);
-  const wienerRetinal = convolveImageSpatial(wienerCorrected, kernel);
-  const unsharpCorrected = unsharpMaskImage(image, kernel, { amount: params.unsharpAmount });
-  const unsharpRetinal = convolveImageSpatial(unsharpCorrected, kernel);
+  const wiener = createWienerComparisonPath(image, kernel, params);
+  const unsharp = createUnsharpComparisonPath(image, kernel, params);
 
   return {
     blurredOriginal,
-    blurredOriginalQuality: measureImageQuality(
-      image.data,
-      blurredOriginal.data,
-      image.width,
-      image.height,
-    ),
-    unsharpCorrected,
-    unsharpRetinal,
-    unsharpRetinalQuality: measureImageQuality(
-      image.data,
-      unsharpRetinal.data,
-      image.width,
-      image.height,
-    ),
-    wienerCorrected,
-    wienerDiagnostics: {
-      clippingFraction: calculateClippingFraction(wienerCorrectedRaw.data),
-      maxWienerGain: wienerCorrectedRaw.maxGainSeen,
-      ...calculateRingingArtifactMetrics(image, wienerRawRetinal),
-    },
-    wienerRetinal,
-    wienerRetinalQuality: measureImageQuality(
-      image.data,
-      wienerRetinal.data,
-      image.width,
-      image.height,
-    ),
+    blurredOriginalQuality: measureGridQuality(image, blurredOriginal),
+    unsharpCorrected: unsharp.corrected,
+    unsharpRetinal: unsharp.retinal,
+    unsharpRetinalQuality: measureGridQuality(image, unsharp.retinal),
+    wienerCorrected: wiener.corrected,
+    wienerDiagnostics: wiener.diagnostics,
+    wienerRetinal: wiener.retinal,
+    wienerRetinalQuality: measureGridQuality(image, wiener.retinal),
   };
 }

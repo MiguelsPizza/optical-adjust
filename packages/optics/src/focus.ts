@@ -8,9 +8,11 @@ import {
 import {
   FeasibilityLevel,
   FocusMode,
+  type BlurGeometryMetrics,
   type BlurResult,
   type Diopters,
   type Pixels,
+  type ViewerParamsInput,
   type VergenceMetrics,
   type ViewerParams,
 } from "optics-types";
@@ -20,12 +22,15 @@ import {
   createVergenceMetrics,
 } from "./equations.ts";
 
-interface NormalizedViewerParams extends ViewerParams {
-  pupilDiameterMm: number;
-  screenPpi: number;
+interface BlurWarningContext {
+  readonly blurRadiusPx: Pixels;
+  readonly cylinderDiopters: Diopters;
+  readonly firstOtfZero: BlurResult["firstOtfZero"];
+  readonly focusMode: FocusMode;
+  readonly residualDefocusDiopters: Diopters;
 }
 
-function applyViewerDefaults(input: ViewerParams): NormalizedViewerParams {
+function resolveViewerParams(input: ViewerParamsInput): ViewerParams {
   return {
     ...input,
     pupilDiameterMm: input.pupilDiameterMm ?? DEFAULT_PUPIL_MM,
@@ -33,7 +38,7 @@ function applyViewerDefaults(input: ViewerParams): NormalizedViewerParams {
   };
 }
 
-function deriveFocusVergence(params: ViewerParams, displayVergence: Diopters): Diopters {
+function deriveFocusVergence(params: ViewerParamsInput, displayVergence: Diopters): Diopters {
   const sph = params.prescription.sph;
 
   switch (params.focusMode) {
@@ -66,22 +71,45 @@ function classifyResidualDefocusFeasibility(residualDefocusDiopters: Diopters): 
   return FeasibilityLevel.VeryPoor;
 }
 
-function buildWarningFlags(
-  residualDefocusDiopters: Diopters,
-  blurRadiusPx: Pixels,
-  firstOtfZero: BlurResult["firstOtfZero"],
-  focusMode: FocusMode,
-  cylinderDiopters: Diopters,
-): BlurResult["warnings"] {
+function buildWarningFlags(context: BlurWarningContext): BlurResult["warnings"] {
   return {
-    astigmatismNotRendered: cylinderDiopters !== 0,
-    calibrationUncertainty: focusMode !== FocusMode.ManualResidual,
-    largeRadiusRegime: blurRadiusPx >= WARNING_THRESHOLDS.largeRadiusPx,
+    astigmatismNotRendered: context.cylinderDiopters !== 0,
+    calibrationUncertainty: context.focusMode !== FocusMode.ManualResidual,
+    largeRadiusRegime: context.blurRadiusPx >= WARNING_THRESHOLDS.largeRadiusPx,
     lowDefocusRegime:
-      residualDefocusDiopters < WARNING_THRESHOLDS.lowDefocusResidualDiopters ||
-      blurRadiusPx < WARNING_THRESHOLDS.lowDefocusBlurRadiusPx,
+      context.residualDefocusDiopters < WARNING_THRESHOLDS.lowDefocusResidualDiopters ||
+      context.blurRadiusPx < WARNING_THRESHOLDS.lowDefocusBlurRadiusPx,
     zeroCrossingRisk:
-      firstOtfZero !== null && firstOtfZero < WARNING_THRESHOLDS.zeroCrossingRiskCyclesPerPixel,
+      context.firstOtfZero !== null &&
+      context.firstOtfZero < WARNING_THRESHOLDS.zeroCrossingRiskCyclesPerPixel,
+  };
+}
+
+function createBlurResult(
+  params: ViewerParams,
+  vergenceMetrics: VergenceMetrics,
+  geometry: BlurGeometryMetrics,
+): BlurResult {
+  const { dDisplay, dFocus, dRes } = vergenceMetrics;
+
+  return {
+    ...geometry,
+    dDisplay,
+    dFocus,
+    dRes,
+    feasibility: classifyResidualDefocusFeasibility(dRes),
+    focusMode: params.focusMode,
+    prescription: params.prescription,
+    pupilDiameterMm: params.pupilDiameterMm,
+    screenPpi: params.screenPpi,
+    viewingDistanceM: params.viewingDistanceM,
+    warnings: buildWarningFlags({
+      blurRadiusPx: geometry.blurRadiusPx,
+      cylinderDiopters: params.prescription.cyl,
+      firstOtfZero: geometry.firstOtfZero,
+      focusMode: params.focusMode,
+      residualDefocusDiopters: dRes,
+    }),
   };
 }
 
@@ -102,7 +130,7 @@ function buildWarningFlags(
  * - Ophthalmic vergence/prescription conventions
  *   https://webeye.ophth.uiowa.edu/eyeforum/video/Refraction/Intro-Optics-Refract-Errors/index.htm
  */
-export function calculateResidualDefocus(params: ViewerParams): VergenceMetrics {
+export function calculateResidualDefocus(params: ViewerParamsInput): VergenceMetrics {
   const dDisplay = calculateDisplayVergence(params.viewingDistanceM);
   const dFocus = deriveFocusVergence(params, dDisplay);
   return createVergenceMetrics(dDisplay, dFocus);
@@ -121,34 +149,16 @@ export function calculateResidualDefocus(params: ViewerParams): VergenceMetrics 
  * - NIST SI Units – Length
  *   https://www.nist.gov/pml/owm/si-units-length
  */
-export function calculateBlurResult(input: ViewerParams): BlurResult {
-  const params = applyViewerDefaults(input);
+export function calculateBlurResult(input: ViewerParamsInput): BlurResult {
+  const params = resolveViewerParams(input);
 
-  const { dDisplay, dFocus, dRes } = calculateResidualDefocus(params);
+  const vergenceMetrics = calculateResidualDefocus(params);
   const geometry = calculateBlurGeometryMetrics(
     params.viewingDistanceM,
     params.pupilDiameterMm / MILLIMETERS_PER_METER,
-    dRes,
+    vergenceMetrics.dRes,
     params.screenPpi,
   );
 
-  return {
-    ...geometry,
-    dDisplay,
-    dFocus,
-    dRes,
-    feasibility: classifyResidualDefocusFeasibility(dRes),
-    focusMode: params.focusMode,
-    prescription: params.prescription,
-    pupilDiameterMm: params.pupilDiameterMm,
-    screenPpi: params.screenPpi,
-    viewingDistanceM: params.viewingDistanceM,
-    warnings: buildWarningFlags(
-      dRes,
-      geometry.blurRadiusPx,
-      geometry.firstOtfZero,
-      params.focusMode,
-      params.prescription.cyl,
-    ),
-  };
+  return createBlurResult(params, vergenceMetrics, geometry);
 }

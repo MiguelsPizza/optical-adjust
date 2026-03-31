@@ -3,13 +3,14 @@ import type { Prescription } from "./prescription.ts";
 import type { Diopters, Millimeters, PixelsPerInch, Meters } from "./units.ts";
 
 /**
- * Shared viewing-state inputs consumed by the residual-defocus chain.
+ * Caller-provided viewing-state inputs consumed by the residual-defocus
+ * pipeline before defaults are applied.
  *
  * Source refs:
  * - `docs/optics_poc_concept.md`
  * - `docs/phase_0_3_build_spec.md`
  */
-export interface ViewerParams<
+export interface ViewerParamsInput<
   TPrescription extends Prescription = Prescription,
   TFocusMode extends FocusMode = FocusMode,
 > {
@@ -36,16 +37,33 @@ export interface ViewerParams<
 
   /**
    * Entrance-pupil diameter in millimeters.
+   *
+   * When omitted, the optics package resolves this to the project default
+   * pupil diameter before running the blur chain.
    */
-  readonly pupilDiameterMm: Millimeters;
+  readonly pupilDiameterMm?: Millimeters;
 
   /**
    * Display density in pixels per inch.
+   *
+   * When omitted, the optics package resolves this to the project default
+   * display density before running the blur chain.
    */
-  readonly screenPpi: PixelsPerInch;
+  readonly screenPpi?: PixelsPerInch;
 
   /**
    * Viewing distance from eye to screen in meters.
    */
   readonly viewingDistanceM: Meters;
+}
+
+/**
+ * Fully-resolved viewing-state parameters after defaults have been applied.
+ */
+export interface ViewerParams<
+  TPrescription extends Prescription = Prescription,
+  TFocusMode extends FocusMode = FocusMode,
+> extends ViewerParamsInput<TPrescription, TFocusMode> {
+  readonly pupilDiameterMm: Millimeters;
+  readonly screenPpi: PixelsPerInch;
 }

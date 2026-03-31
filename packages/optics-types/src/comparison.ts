@@ -1,4 +1,5 @@
 import type { ImageGrid } from "./image-grid.ts";
+import type { WienerParams } from "./otf.ts";
 import type { UnitlessGain, UnitlessScalar } from "./units.ts";
 
 /**
@@ -6,9 +7,9 @@ import type { UnitlessGain, UnitlessScalar } from "./units.ts";
  * browser comparison UI.
  */
 export interface ImageQualityMetrics {
-  psnr: UnitlessScalar;
-  rmse: UnitlessScalar;
-  ssim: UnitlessScalar;
+  readonly psnr: UnitlessScalar;
+  readonly rmse: UnitlessScalar;
+  readonly ssim: UnitlessScalar;
 }
 
 /**
@@ -19,10 +20,35 @@ export interface ImageQualityMetrics {
  * - `docs/equation_source_verification_notes.md`
  */
 export interface ArtifactDiagnostics {
-  clippingFraction: UnitlessScalar;
-  maxWienerGain: UnitlessGain;
-  overshootFraction: UnitlessScalar;
-  ringingEnergy: UnitlessScalar;
+  readonly clippingFraction: UnitlessScalar;
+  readonly maxWienerGain: UnitlessGain;
+  readonly overshootFraction: UnitlessScalar;
+  readonly ringingEnergy: UnitlessScalar;
+}
+
+/**
+ * Controls for the simple spatial unsharp-mask reference path.
+ */
+export interface UnsharpMaskParams {
+  /**
+   * Strength multiplier applied to the high-frequency residual.
+   */
+  readonly amount: number;
+}
+
+/**
+ * Shared comparison controls used by the deterministic correction benchmark.
+ */
+export interface ComparisonPathParams {
+  /**
+   * Strength parameter for the unsharp-mask baseline path.
+   */
+  readonly unsharpAmount: UnsharpMaskParams["amount"];
+
+  /**
+   * Parameters for the Wiener deconvolution path.
+   */
+  readonly wiener: WienerParams;
 }
 
 /**
@@ -30,13 +56,13 @@ export interface ArtifactDiagnostics {
  * blur kernel, and correction-parameter set.
  */
 export interface ComparisonCaseResult {
-  blurredOriginal: ImageGrid;
-  blurredOriginalQuality: ImageQualityMetrics;
-  unsharpCorrected: ImageGrid;
-  unsharpRetinal: ImageGrid;
-  unsharpRetinalQuality: ImageQualityMetrics;
-  wienerCorrected: ImageGrid;
-  wienerDiagnostics: ArtifactDiagnostics;
-  wienerRetinal: ImageGrid;
-  wienerRetinalQuality: ImageQualityMetrics;
+  readonly blurredOriginal: ImageGrid;
+  readonly blurredOriginalQuality: ImageQualityMetrics;
+  readonly unsharpCorrected: ImageGrid;
+  readonly unsharpRetinal: ImageGrid;
+  readonly unsharpRetinalQuality: ImageQualityMetrics;
+  readonly wienerCorrected: ImageGrid;
+  readonly wienerDiagnostics: ArtifactDiagnostics;
+  readonly wienerRetinal: ImageGrid;
+  readonly wienerRetinalQuality: ImageQualityMetrics;
 }
