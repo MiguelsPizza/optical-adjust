@@ -54,12 +54,9 @@ export const VIEWING_DISTANCE_INPUT_STEP_M = 0.05;
 export const DIOPTER_INPUT_STEP = 0.25;
 
 /**
- * First zero of `J1`, used by the disk OTF zero derivation.
+ * First zero of the Bessel J1 function.
  *
  * Source ref: `docs/equation_source_verification_notes.md`
- */
-/**
- * First zero of the Bessel J1 function.
  *
  * @remarks Provenance constant — `OTF_ZERO_COEFFICIENT` (0.61) is derived as
  * `BESSEL_J1_FIRST_ZERO / (2 * PI)`. Kept for traceability; use when

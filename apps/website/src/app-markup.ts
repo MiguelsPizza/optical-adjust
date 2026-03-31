@@ -39,6 +39,13 @@ interface QualityMetricRow {
   ssim: string;
 }
 
+interface PanelDescriptor {
+  caption: string;
+  className?: string;
+  step: number;
+  testId: string;
+}
+
 function escapeHtml(value: string) {
   return value
     .replaceAll("&", "&amp;")
@@ -294,7 +301,7 @@ function createQualityPanelMarkup(context: AppRenderContext) {
 }
 
 function createPanelGridMarkup() {
-  const panels = [
+  const panels: ReadonlyArray<PanelDescriptor> = [
     { caption: PANEL_CAPTIONS.original, step: 1, testId: "canvas-original" },
     {
       caption: PANEL_CAPTIONS.wienerCorrected,
@@ -315,7 +322,7 @@ function createPanelGridMarkup() {
       testId: "canvas-blurred-wiener",
     },
     { caption: PANEL_CAPTIONS.unsharpRetinal, step: 6, testId: "canvas-blurred-unsharp" },
-  ] as const;
+  ];
 
   return `
     <section class="panel-grid">
