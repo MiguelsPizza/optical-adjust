@@ -1,9 +1,11 @@
 import { fileURLToPath } from "node:url";
 
+import { cloudflare } from "@cloudflare/vite-plugin";
 import { defineConfig } from "vite-plus";
 import { playwright } from "vite-plus/test/browser/providers/playwright";
 
 export default defineConfig({
+  plugins: [cloudflare()],
   resolve: {
     alias: {
       optics: fileURLToPath(new URL("../../packages/optics/src/index.ts", import.meta.url)),
