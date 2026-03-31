@@ -3,13 +3,24 @@ import {
   ERROR_MESSAGES,
   REC_709_LUMINANCE,
   SRGB_TRANSFER,
-} from "../../optics-constants/src/index.ts";
+} from "optics-constants";
 
-function clamp(value: number, min: number, max: number) {
+function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function srgbChannelToLinear(value: number) {
+function getCanvasContext(canvas: HTMLCanvasElement): CanvasRenderingContext2D {
+  const context = canvas.getContext(CANVAS_2D_CONTEXT_ID);
+  if (!context) {
+    throw new Error(ERROR_MESSAGES.canvasContextRequired);
+  }
+  return context;
+}
+
+/**
+ * Converts a single encoded sRGB channel value into linear light.
+ */
+export function srgbChannelToLinear(value: number): number {
   const normalized = clamp(value / SRGB_TRANSFER.channelMax, 0, 1);
   if (normalized <= SRGB_TRANSFER.srgbBreakpoint) {
     return normalized / SRGB_TRANSFER.lowSlope;
@@ -19,7 +30,10 @@ export function srgbChannelToLinear(value: number) {
   );
 }
 
-export function linearChannelToSrgb(value: number) {
+/**
+ * Converts a linear-light channel value into an encoded sRGB byte.
+ */
+export function linearChannelToSrgb(value: number): number {
   const clamped = clamp(value, 0, 1);
   const normalized =
     clamped <= SRGB_TRANSFER.linearBreakpoint
@@ -29,7 +43,10 @@ export function linearChannelToSrgb(value: number) {
   return Math.round(normalized * SRGB_TRANSFER.channelMax);
 }
 
-export function imageDataToLinearLuminance(imageData: ImageData) {
+/**
+ * Converts RGBA image data into a grayscale linear-luminance buffer.
+ */
+export function imageDataToLinearLuminance(imageData: ImageData): Float64Array {
   const luminance = new Float64Array(imageData.width * imageData.height);
   for (let index = 0; index < luminance.length; index += 1) {
     const base = index * 4;
@@ -42,7 +59,14 @@ export function imageDataToLinearLuminance(imageData: ImageData) {
   return luminance;
 }
 
-export function linearLuminanceToImageData(luminance: Float64Array, width: number, height: number) {
+/**
+ * Converts a linear-luminance buffer into grayscale RGBA image data.
+ */
+export function linearLuminanceToImageData(
+  luminance: Float64Array,
+  width: number,
+  height: number,
+): ImageData {
   const imageData = new ImageData(width, height);
   for (let index = 0; index < luminance.length; index += 1) {
     const base = index * 4;
@@ -55,23 +79,23 @@ export function linearLuminanceToImageData(luminance: Float64Array, width: numbe
   return imageData;
 }
 
-export function readCanvasLuminance(canvas: HTMLCanvasElement) {
-  const context = canvas.getContext(CANVAS_2D_CONTEXT_ID);
-  if (!context) {
-    throw new Error(ERROR_MESSAGES.canvasContextRequired);
-  }
+/**
+ * Reads the current canvas contents into a linear-luminance buffer.
+ */
+export function readCanvasLuminance(canvas: HTMLCanvasElement): Float64Array {
+  const context = getCanvasContext(canvas);
   return imageDataToLinearLuminance(context.getImageData(0, 0, canvas.width, canvas.height));
 }
 
+/**
+ * Writes a linear-luminance buffer into the target canvas.
+ */
 export function writeFloatImageToCanvas(
   canvas: HTMLCanvasElement,
   data: Float64Array,
   width: number,
   height: number,
-) {
-  const context = canvas.getContext(CANVAS_2D_CONTEXT_ID);
-  if (!context) {
-    throw new Error(ERROR_MESSAGES.canvasContextRequired);
-  }
+): void {
+  const context = getCanvasContext(canvas);
   context.putImageData(linearLuminanceToImageData(data, width, height), 0, 0);
 }
