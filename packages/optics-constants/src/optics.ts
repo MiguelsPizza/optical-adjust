@@ -1,4 +1,4 @@
-import { CorrectionMode, FeasibilityLevel } from "optics-types";
+import { FeasibilityLevel } from "optics-types";
 
 export const MILLIMETERS_PER_METER = 1000;
 /**
@@ -167,8 +167,6 @@ export const UNSHARP_CONTROL_RANGES = {
   amountMin: 0,
   amountStep: 0.1,
 } as const;
-
-export const DEFAULT_CORRECTION_MODE = CorrectionMode.Wiener;
 
 export const MERIDIAN_AXIS_PERIOD_DEGREES = 180;
 export const COMPLEX_COMPONENT_EPSILON = 1e-15;

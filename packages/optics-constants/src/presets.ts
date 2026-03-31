@@ -1,7 +1,6 @@
 import { FocusMode, type ViewerParams } from "optics-types";
 
 import {
-  DEFAULT_CORRECTION_MODE,
   DEFAULT_PUPIL_MM,
   DEFAULT_SCREEN_PPI,
   DEFAULT_VIEWING_DISTANCE_M,
@@ -106,7 +105,6 @@ export const PLAYGROUND_PRESETS: PlaygroundPreset[] = [
 export const DEFAULT_PLAYGROUND_PRESET = PLAYGROUND_PRESETS[0]!;
 
 export const DEFAULT_RENDER_CONTROLS = {
-  correctionMode: DEFAULT_CORRECTION_MODE,
   maxGain: WIENER_DEFAULTS.maxGain,
   regularizationK: WIENER_DEFAULTS.regularizationK,
   unsharpAmount: UNSHARP_DEFAULTS.amount,

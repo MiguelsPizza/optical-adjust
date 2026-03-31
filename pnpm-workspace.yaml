@@ -4,6 +4,7 @@ packages:
   - tools/*
 
 catalog:
+  "@mcp-b/webmcp-types": ^2.2.0
   "@playwright/test": ^1.58.2
   "@types/node": ^24
   "@types/react": ^19.2.14

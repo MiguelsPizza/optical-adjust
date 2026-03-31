@@ -1,11 +1,27 @@
 import { beforeEach, describe, expect, test } from "vite-plus/test";
-import { APP_CANVAS_DIMENSIONS, DEFAULT_PLAYGROUND_PRESET, WARNING_LABELS } from "optics-constants";
-import { calculateBlurResult } from "optics";
-import { CorrectionMode, FocusMode, type ViewerParams } from "optics-types";
+import {
+  APP_CANVAS_DIMENSIONS,
+  DEFAULT_PLAYGROUND_PRESET,
+  DEFAULT_RENDER_CONTROLS,
+  WARNING_LABELS,
+} from "optics-constants";
+import { calculateBlurResult, createPillboxKernel } from "optics";
+import { compareCanvasCorrectionPaths, drawTestPattern } from "optics-render";
+import { FocusMode, type ViewerParams } from "optics-types";
 
 import { mountApp } from "./app.ts";
 
-function buildViewerParams(overrides: Partial<ViewerParams> = {}): ViewerParams {
+type ViewerParamsOverrides = Partial<Omit<ViewerParams, "prescription">> & {
+  prescription?: Partial<ViewerParams["prescription"]>;
+};
+
+interface ControlOverrides {
+  maxGain?: number;
+  regularizationK?: number;
+  unsharpAmount?: number;
+}
+
+function buildViewerParams(overrides: ViewerParamsOverrides = {}): ViewerParams {
   return {
     ...DEFAULT_PLAYGROUND_PRESET.params,
     ...overrides,
@@ -31,6 +47,9 @@ function setupApp() {
 
 function readMetric(testId: string) {
   const text = queryRequired<HTMLElement>(`[data-testid="${testId}"]`).textContent ?? "";
+  if (/infinity/i.test(text)) {
+    return Number.POSITIVE_INFINITY;
+  }
   const match = text.match(/-?\d+(?:\.\d+)?/);
   if (!match) {
     throw new Error(`Expected numeric content for ${testId}, received: ${text}`);
@@ -39,17 +58,56 @@ function readMetric(testId: string) {
 }
 
 function expectMetric(testId: string, value: number) {
+  if (!Number.isFinite(value)) {
+    expect(readMetric(testId)).toBe(value);
+    return;
+  }
   expect(readMetric(testId)).toBeCloseTo(value, 3);
 }
 
-function expectUiToMatch(viewerParams: ViewerParams) {
+function calculateExpectedComparison(viewerParams: ViewerParams, overrides: ControlOverrides = {}) {
+  const source = document.createElement("canvas");
+  source.width = APP_CANVAS_DIMENSIONS.panelWidth;
+  source.height = APP_CANVAS_DIMENSIONS.panelHeight;
+  drawTestPattern(source);
+
   const blurResult = calculateBlurResult(viewerParams);
+  const comparisonResult = compareCanvasCorrectionPaths(
+    source,
+    createPillboxKernel(blurResult.blurRadiusPx),
+    {
+      unsharpAmount: overrides.unsharpAmount ?? DEFAULT_RENDER_CONTROLS.unsharpAmount,
+      wiener: {
+        maxGain: overrides.maxGain ?? DEFAULT_RENDER_CONTROLS.maxGain,
+        regularizationK: overrides.regularizationK ?? DEFAULT_RENDER_CONTROLS.regularizationK,
+      },
+    },
+  );
+
+  return { blurResult, comparisonResult };
+}
+
+function expectUiToMatch(viewerParams: ViewerParams, overrides: ControlOverrides = {}) {
+  const { blurResult, comparisonResult } = calculateExpectedComparison(viewerParams, overrides);
 
   expectMetric("metric-d-display", blurResult.dDisplay);
   expectMetric("metric-d-focus", blurResult.dFocus);
   expectMetric("metric-d-res", blurResult.dRes);
   expectMetric("metric-radius", blurResult.blurRadiusPx);
   expectMetric("metric-diameter", blurResult.blurDiameterPx);
+  expectMetric("metric-clipping-fraction", comparisonResult.wienerDiagnostics.clippingFraction);
+  expectMetric("metric-overshoot-fraction", comparisonResult.wienerDiagnostics.overshootFraction);
+  expectMetric("metric-ringing-energy", comparisonResult.wienerDiagnostics.ringingEnergy);
+  expectMetric("metric-max-wiener-gain", comparisonResult.wienerDiagnostics.maxWienerGain);
+  expectMetric("metric-blurred-original-rmse", comparisonResult.blurredOriginalQuality.rmse);
+  expectMetric("metric-wiener-retinal-rmse", comparisonResult.wienerRetinalQuality.rmse);
+  expectMetric("metric-unsharp-retinal-rmse", comparisonResult.unsharpRetinalQuality.rmse);
+  expectMetric("metric-blurred-original-psnr", comparisonResult.blurredOriginalQuality.psnr);
+  expectMetric("metric-wiener-retinal-psnr", comparisonResult.wienerRetinalQuality.psnr);
+  expectMetric("metric-unsharp-retinal-psnr", comparisonResult.unsharpRetinalQuality.psnr);
+  expectMetric("metric-blurred-original-ssim", comparisonResult.blurredOriginalQuality.ssim);
+  expectMetric("metric-wiener-retinal-ssim", comparisonResult.wienerRetinalQuality.ssim);
+  expectMetric("metric-unsharp-retinal-ssim", comparisonResult.unsharpRetinalQuality.ssim);
 
   if (blurResult.firstOtfZero === null) {
     expect(queryRequired<HTMLElement>('[data-testid="metric-first-zero"]').textContent).toMatch(
@@ -82,42 +140,39 @@ function setInputValue(testId: string, value: string) {
   element.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
+function blurInput(testId: string) {
+  queryRequired<HTMLInputElement>(`[data-testid="${testId}"]`).dispatchEvent(
+    new Event("blur", { bubbles: true }),
+  );
+}
+
 describe("website playground browser tests", () => {
   beforeEach(() => {
     setupApp();
   });
 
-  test("loads the playground and renders all public diagnostics", () => {
+  test("loads the playground and renders both correction paths with diagnostics", () => {
     expect(queryRequired('[data-testid="preset-select"]')).toBeTruthy();
-    expect(queryRequired<HTMLSelectElement>('[data-testid="preset-select"]').value).toBe(
-      "alex-right-eye",
-    );
+    expect(queryRequired('[data-testid="focus-mode"]')).toBeTruthy();
+    expect(queryRequired('[data-testid="wiener-input"]')).toBeTruthy();
+    expect(queryRequired('[data-testid="max-gain-input"]')).toBeTruthy();
+    expect(queryRequired('[data-testid="unsharp-amount-input"]')).toBeTruthy();
 
     expect(queryRequired('[data-testid="canvas-original"]')).toBeTruthy();
-    expect(queryRequired('[data-testid="canvas-corrected"]')).toBeTruthy();
+    expect(queryRequired('[data-testid="canvas-wiener-corrected"]')).toBeTruthy();
+    expect(queryRequired('[data-testid="canvas-unsharp-corrected"]')).toBeTruthy();
     expect(queryRequired('[data-testid="canvas-blurred-original"]')).toBeTruthy();
-    expect(queryRequired('[data-testid="canvas-blurred-corrected"]')).toBeTruthy();
+    expect(queryRequired('[data-testid="canvas-blurred-wiener"]')).toBeTruthy();
+    expect(queryRequired('[data-testid="canvas-blurred-unsharp"]')).toBeTruthy();
     expect(queryRequired('[data-testid="canvas-otf"]')).toBeTruthy();
 
     expectUiToMatch(DEFAULT_PLAYGROUND_PRESET.params);
-    expect(readMetric("metric-max-gain-seen")).toBeGreaterThan(0);
   });
 
   test("left-eye preset surfaces the astigmatism-not-rendered warning", () => {
     setSelectValue("preset-select", "alex-left-eye");
     expect(queryRequired<HTMLElement>('[data-testid="warning-list"]').textContent).toContain(
       WARNING_LABELS.astigmatismNotRendered,
-    );
-  });
-
-  test("unsharp mode exposes the baseline control and hides Wiener-only controls", () => {
-    setSelectValue("correction-mode", CorrectionMode.UnsharpMask);
-
-    expect(queryRequired('[data-testid="unsharp-amount-input"]')).toBeTruthy();
-    expect(document.querySelector('[data-testid="wiener-input"]')).toBeNull();
-    expect(document.querySelector('[data-testid="max-gain-input"]')).toBeNull();
-    expect(queryRequired<HTMLElement>('[data-testid="metric-max-gain-seen"]').textContent).toMatch(
-      /n\/a/i,
     );
   });
 
@@ -191,31 +246,92 @@ describe("website playground browser tests", () => {
     );
   });
 
+  test("transient empty numeric input does not reset the model before a valid value arrives", () => {
+    const baselineResidual = readMetric("metric-d-res");
+    const distanceInput = queryRequired<HTMLInputElement>('[data-testid="distance-input"]');
+
+    setInputValue("distance-input", "");
+
+    expect(distanceInput.value).toBe("");
+    expect(readMetric("metric-d-res")).toBeCloseTo(baselineResidual, 3);
+
+    setInputValue("distance-input", "0.5");
+
+    expectUiToMatch(buildViewerParams({ viewingDistanceM: 0.5 }));
+  });
+
+  test("out-of-range numeric controls restore the last valid state on blur", () => {
+    const baselineResidual = readMetric("metric-d-res");
+
+    setInputValue("ppi-input", "50");
+
+    expect(queryRequired<HTMLInputElement>('[data-testid="ppi-input"]').value).toBe("50");
+    expect(readMetric("metric-d-res")).toBeCloseTo(baselineResidual, 3);
+
+    blurInput("ppi-input");
+
+    expect(queryRequired<HTMLInputElement>('[data-testid="ppi-input"]').value).toBe(
+      String(DEFAULT_PLAYGROUND_PRESET.params.screenPpi),
+    );
+    expectUiToMatch(DEFAULT_PLAYGROUND_PRESET.params);
+
+    setInputValue("wiener-input", "0.5");
+    blurInput("wiener-input");
+
+    expect(queryRequired<HTMLInputElement>('[data-testid="wiener-input"]').value).toBe(
+      String(DEFAULT_RENDER_CONTROLS.regularizationK),
+    );
+    expectUiToMatch(DEFAULT_PLAYGROUND_PRESET.params);
+  });
+
+  test("invalid focus-mode mutations are ignored and the UI snaps back to a valid mode", () => {
+    const focusModeSelect = queryRequired<HTMLSelectElement>('[data-testid="focus-mode"]');
+
+    focusModeSelect.value = "not-a-focus-mode";
+    focusModeSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+    expect(focusModeSelect.value).toBe(DEFAULT_PLAYGROUND_PRESET.params.focusMode);
+    expectUiToMatch(DEFAULT_PLAYGROUND_PRESET.params);
+  });
+
   test("sequential control changes keep the browser metrics coherent", () => {
     let params = buildViewerParams();
+    const controls: ControlOverrides = {};
 
     setSelectValue("focus-mode", FocusMode.FixedFocus);
     params = { ...params, fixedFocusDiopters: 0, focusMode: FocusMode.FixedFocus };
-    expectUiToMatch(params);
+    expectUiToMatch(params, controls);
 
     setInputValue("fixed-focus-input", "1.25");
     params = { ...params, fixedFocusDiopters: 1.25 };
-    expectUiToMatch(params);
+    expectUiToMatch(params, controls);
 
     setInputValue("sphere-input", "-3.5");
     params = {
       ...params,
       prescription: { ...params.prescription, sph: -3.5 },
     };
-    expectUiToMatch(params);
+    expectUiToMatch(params, controls);
 
     setInputValue("distance-input", "0.4");
     params = { ...params, viewingDistanceM: 0.4 };
-    expectUiToMatch(params);
+    expectUiToMatch(params, controls);
 
     setInputValue("pupil-input", "6.5");
     params = { ...params, pupilDiameterMm: 6.5 };
-    expectUiToMatch(params);
+    expectUiToMatch(params, controls);
+
+    setInputValue("wiener-input", "0.01");
+    controls.regularizationK = 0.01;
+    expectUiToMatch(params, controls);
+
+    setInputValue("max-gain-input", "6");
+    controls.maxGain = 6;
+    expectUiToMatch(params, controls);
+
+    setInputValue("unsharp-amount-input", "2.2");
+    controls.unsharpAmount = 2.2;
+    expectUiToMatch(params, controls);
   });
 
   test("warning regimes trigger their expected browser-visible states", () => {
@@ -252,9 +368,11 @@ describe("website playground browser tests", () => {
   test("all panel and OTF canvases use the expected backing dimensions", () => {
     const panelCanvases = [
       "canvas-original",
-      "canvas-corrected",
+      "canvas-wiener-corrected",
+      "canvas-unsharp-corrected",
       "canvas-blurred-original",
-      "canvas-blurred-corrected",
+      "canvas-blurred-wiener",
+      "canvas-blurred-unsharp",
     ] as const;
 
     for (const testId of panelCanvases) {

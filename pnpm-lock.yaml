@@ -6,6 +6,9 @@ settings:
 
 catalogs:
   default:
+    '@mcp-b/webmcp-types':
+      specifier: ^2.2.0
+      version: 2.2.0
     '@playwright/test':
       specifier: ^1.58.2
       version: 1.58.2
@@ -52,6 +55,9 @@ importers:
         specifier: workspace:*
         version: link:../../packages/optics-types
     devDependencies:
+      '@mcp-b/webmcp-types':
+        specifier: 'catalog:'
+        version: 2.2.0
       '@playwright/test':
         specifier: 'catalog:'
         version: 1.58.2
@@ -196,6 +202,9 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
+
+  '@mcp-b/webmcp-types@2.2.0':
+    resolution: {integrity: sha512-1/UYAwQKBkqRgK18GkbGR4m6Cn9vz6Qy6pTL5LIIinUOhR5dMLaNl/blH/tJT+nJleMmgDoFZWGAmmr+fAz2PQ==}
 
   '@napi-rs/wasm-runtime@1.1.2':
     resolution: {integrity: sha512-sNXv5oLJ7ob93xkZ1XnxisYhGYXfaG9f65/ZgYuAu3qt7b3NadcOEhLvx28hv31PgX8SZJRYrAIPQilQmFpLVw==}
@@ -1251,6 +1260,8 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  '@mcp-b/webmcp-types@2.2.0': {}
 
   '@napi-rs/wasm-runtime@1.1.2(@emnapi/core@1.9.1)(@emnapi/runtime@1.9.1)':
     dependencies:

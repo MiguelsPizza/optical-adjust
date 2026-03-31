@@ -1,9 +1,11 @@
-import { CorrectionMode, FeasibilityLevel, FocusMode, type WarningFlags } from "optics-types";
+import { FeasibilityLevel, FocusMode, type WarningFlags } from "optics-types";
 import { UNSHARP_CONTROL_RANGES } from "./optics.ts";
 
 export const APP_COPY = {
   analyticsEyebrow: "OTF Diagnostics",
   blurHeading: "Blur",
+  comparisonDescription:
+    "Reference Wiener and unsharp-mask baselines are rendered together so the target regime can be compared under the same residual-defocus model.",
   eyebrow: "Residual-Defocus Playground",
   lede: "Sphere-first browser optics playground with a pillbox PSF, analytic disk OTF, and reference Wiener prefiltering.",
   otfDescription:
@@ -20,13 +22,10 @@ export const EMPTY_STATE_COPY = {
 } as const;
 
 export const FIELD_LABELS = {
-  correctionMode: "Correction mode",
   distance: "Distance (m)",
   fixedFocus: "Fixed focus (D)",
-  focusMode: "Focus mode",
   manualResidual: "Manual residual (D)",
   maxWienerGain: "Max Wiener gain",
-  preset: "Preset",
   pupil: "Pupil (mm)",
   screenPpi: "Screen PPI",
   sphere: "Sphere (D)",
@@ -35,21 +34,26 @@ export const FIELD_LABELS = {
 } as const;
 
 export const PANEL_CAPTIONS = {
-  blurredCorrected: "Retinal blur of prefiltered target",
   blurredOriginal: "Retinal blur of original",
-  corrected: "Prefiltered target",
   original: "Original target",
+  unsharpCorrected: "Unsharp prefiltered target",
+  unsharpRetinal: "Retinal blur of unsharp target",
+  wienerCorrected: "Wiener prefiltered target",
+  wienerRetinal: "Retinal blur of Wiener target",
 } as const;
 
 export const METRIC_LABELS = {
   blurDiameter: "Diameter (px)",
   blurRadius: "Radius (px)",
+  clippingFraction: "Clipping fraction",
   dDisplay: "D_display",
   dFocus: "D_focus",
   dRes: "D_res",
   feasibility: "Feasibility",
   firstOtfZero: "First OTF zero",
-  observedMaxGain: "Observed max gain",
+  maxWienerGain: "Max Wiener gain",
+  overshootFraction: "Overshoot fraction",
+  ringingEnergy: "Ringing energy",
 } as const;
 
 export const NUMBER_FORMATTING = {
@@ -85,25 +89,14 @@ export const FOCUS_MODE_OPTIONS = [
   },
 ] as const;
 
-export const CORRECTION_MODE_OPTIONS = [
-  {
-    description: "Regularized inverse filter using the blur model and Wiener controls.",
-    label: "Wiener",
-    value: CorrectionMode.Wiener,
-  },
-  {
-    description: "Simple edge-enhancement baseline for comparison against the optics-aware path.",
-    label: "Unsharp Mask",
-    value: CorrectionMode.UnsharpMask,
-  },
-] as const;
-
-export const CORRECTION_MODE_DESCRIPTIONS: Record<CorrectionMode, string> = {
-  [CorrectionMode.UnsharpMask]:
-    "Baseline edge-enhancement control. This does not invert the measured OTF zeros and is included as the POC comparison path.",
-  [CorrectionMode.Wiener]:
-    "Optics-aware inverse filter with regularization and gain capping. This is the reference prefiltering path.",
-};
+export const QUALITY_METRIC_LABELS = {
+  blurredOriginal: "Blurred original",
+  psnr: "PSNR",
+  rmse: "RMSE",
+  ssim: "SSIM",
+  unsharpRetinal: "Unsharp retinal",
+  wienerRetinal: "Wiener retinal",
+} as const;
 
 export const UNSHARP_AMOUNT_LABEL = `${UNSHARP_CONTROL_RANGES.amountMin.toFixed(1)}-${UNSHARP_CONTROL_RANGES.amountMax.toFixed(1)}`;
 

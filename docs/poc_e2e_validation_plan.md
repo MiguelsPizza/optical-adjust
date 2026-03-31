@@ -10,7 +10,7 @@ Determine how much of the current proof-of-concept can be verified in code, iden
 
 Both validation layers already exist in the repo, but only as a baseline.
 
-- Layer 1 exists: deterministic browser and app-flow assertions are present.
+- Layer 1 exists: deterministic browser-mounted app-flow assertions are present.
 - Layer 2 exists: there are numeric/image-pipeline assertions in unit and browser tests.
 - Neither layer is rigorous enough yet to be treated as a complete POC verification strategy.
 
@@ -30,38 +30,36 @@ The current suite does not yet prove, with enough rigor, that:
 
 ## Audit
 
-### Layer 1: deterministic app-flow assertions
+### Layer 1: deterministic browser app-flow assertions
 
 Current tests:
 
-- [tests/e2e/playground.spec.ts](/Users/alexmnahas/personalRepos/optical-adjust/tests/e2e/playground.spec.ts)
+- [apps/website/src/app.browser.test.ts](/Users/alexmnahas/personalRepos/optical-adjust/apps/website/src/app.browser.test.ts)
 
 What currently exists:
 
-- load test checks heading visibility and a couple of diagnostics
-- manual residual flow checks `D_res`, blur diameter, and warning text
-- preset flow checks `D_res` and blur radius
+- load test checks the mounted playground shell and public diagnostics
+- focus-mode flows cover `ScreenFocused`, `RelaxedFarPoint`, `FixedFocus`, `ManualResidual`, and `PrescriptionEstimate`
+- sequential control changes assert that the derived metrics remain coherent
+- warning-regime checks cover low-defocus and large-radius states
+- canvas-size checks assert the expected backing dimensions
+- transient empty input regression coverage ensures intermediate invalid edits do not corrupt state
 
 Assessment:
 
 - This is real Layer 1 coverage.
-- It is useful, but narrow.
-- It verifies a few happy paths rather than the full UI contract.
+- It is stronger than a basic smoke test.
+- It still does not exercise a full navigation/reload or deployed-browser contract.
 
 Current gaps:
 
-- no assertion of `D_focus` or `firstOtfZero` in e2e
-- no coverage for `ScreenFocused` or `FixedFocus`
-- no explicit coverage for `RelaxedFarPoint` behavior beyond default load
-- no assertion that conditional controls appear/disappear correctly across all modes
-- no assertion that all four panel canvases are rendered with correct backing dimensions
-- no browser-side check that metrics remain coherent after multiple sequential changes
 - no reload/state persistence coverage
-- no negative/regression coverage for low-defocus and large-radius warning regimes
+- no external page-level network/bootstrap checks
+- no browser-driven assertions around the WebMCP relay scripts
 
 Verdict:
 
-- Exists, but not rigorous enough yet.
+- Exists and is useful, but is not a full end-to-end harness.
 
 ### Layer 2: numeric and image-pipeline assertions
 
@@ -78,11 +76,12 @@ What currently exists:
 - numeric OTF checked against analytic OTF at low frequencies
 - deconvolution checked via MSE threshold and center-pixel improvement
 - browser-mode canvas tests check PSF draw, OTF marker draw, blur/deconvolution behavior, and sRGB conversion
+- browser-side parity checks compare render-path output with optics-core expectations for blur, Wiener deconvolution, and unsharp masking
 
 Assessment:
 
 - This is real Layer 2 coverage.
-- It is stronger than the e2e suite.
+- It is stronger than the Layer 1 website suite on numeric rigor.
 - It still behaves more like a smoke-level numerical harness than a rigorous image-quality regression system.
 
 Current gaps:
@@ -107,9 +106,9 @@ Verdict:
 
 ### Phase A: strengthen Layer 1
 
-Add Playwright coverage for the explicit browser contract.
+Expand the browser-mounted website contract beyond the current in-app suite.
 
-New e2e cases:
+New browser cases:
 
 1. `ScreenFocused` mode yields near-zero residual defocus at the current distance.
 2. `RelaxedFarPoint` mode reproduces the verified `-2 D at 50 cm -> near-zero residual` case.
@@ -125,8 +124,8 @@ New e2e cases:
 
 Success criteria:
 
-- every public control surface is exercised at least once in Playwright
-- every public derived metric is asserted somewhere in e2e
+- every public control surface is exercised at least once in browser-mode tests
+- every public derived metric is asserted somewhere in the website suite
 - every warning regime is covered in-browser
 
 ### Phase B: strengthen Layer 2
@@ -167,7 +166,7 @@ Connect the browser output back to the optics-core contract.
 
 Recommended tests:
 
-1. Extract canvas luminance in Playwright or browser-mode tests.
+1. Extract canvas luminance in browser-mode tests.
 2. Compare browser-rendered results to package-level reference output for the same input.
 3. Use tolerances rather than exact pixel equality to avoid flaky failures from browser rendering details.
 
@@ -187,7 +186,7 @@ Those should be tested with a small structured human protocol, not with ad hoc s
 
 ## Suggested implementation order
 
-1. Expand Playwright Layer 1 coverage until every control/metric/warning path is asserted.
+1. Expand Layer 1 browser coverage until every control/metric/warning path is asserted.
 2. Add image-quality utilities and browser-side metric assertions.
 3. Add a small matrix of golden numeric cases for synthetic targets.
 4. Only after that, decide whether the POC is strong enough to move into heavier optimization or Rust/Wasm porting.

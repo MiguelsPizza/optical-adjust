@@ -17,6 +17,7 @@
     "optics-types": "workspace:*"
   },
   "devDependencies": {
+    "@mcp-b/webmcp-types": "catalog:",
     "@playwright/test": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",

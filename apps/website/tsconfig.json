@@ -12,9 +12,10 @@
     "noUnusedParameters": true,
     "strict": true,
     "target": "es2023",
-    "types": ["vite/client"],
+    "types": ["vite/client", "@mcp-b/webmcp-types"],
     "useDefineForClassFields": true,
     "verbatimModuleSyntax": true
   },
+  "exclude": ["src/**/*.browser.test.ts"],
   "include": ["src"]
 }
