@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "paths": {
+      "optics-constants": ["./packages/optics-constants/src/index.ts"],
+      "optics": ["./packages/optics/src/index.ts"],
+      "optics-render": ["./packages/optics-render/src/index.ts"],
+      "optics-types": ["./packages/optics-types/src/index.ts"]
+    }
+  }
+}
